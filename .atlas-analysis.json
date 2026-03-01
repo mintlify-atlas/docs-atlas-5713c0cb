@@ -1,0 +1,199 @@
+{
+  "projectType": "saas",
+  "projectName": "Databuddy",
+  "projectDescription": "Privacy-first analytics platform with GDPR compliance, real-time tracking, and AI-powered insights",
+  "theme": "mint",
+  "primaryColor": "#3B82F6",
+  "lightColor": "#60A5FA",
+  "darkColor": "#2563EB",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/privacy-first",
+              "concepts/event-tracking",
+              "concepts/sessions-users",
+              "concepts/data-model"
+            ]
+          },
+          {
+            "group": "SDK Integration",
+            "pages": [
+              "sdk/overview",
+              "sdk/installation",
+              "sdk/javascript",
+              "sdk/react",
+              "sdk/vue",
+              "sdk/nodejs",
+              "sdk/configuration"
+            ]
+          },
+          {
+            "group": "Tracking",
+            "pages": [
+              "tracking/events",
+              "tracking/pageviews",
+              "tracking/custom-properties",
+              "tracking/user-identification",
+              "tracking/sessions"
+            ]
+          },
+          {
+            "group": "Features",
+            "pages": [
+              "features/dashboard",
+              "features/analytics",
+              "features/goals",
+              "features/funnels",
+              "features/feature-flags",
+              "features/link-shortening",
+              "features/uptime-monitoring",
+              "features/ai-insights"
+            ]
+          },
+          {
+            "group": "Privacy & Compliance",
+            "pages": [
+              "privacy/gdpr-compliance",
+              "privacy/data-retention",
+              "privacy/cookie-policy",
+              "privacy/data-processing"
+            ]
+          },
+          {
+            "group": "Self-Hosting",
+            "pages": [
+              "self-hosting/overview",
+              "self-hosting/requirements",
+              "self-hosting/docker",
+              "self-hosting/configuration",
+              "self-hosting/database-setup",
+              "self-hosting/environment-variables"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/migrating-from-ga",
+              "guides/custom-dashboards",
+              "guides/webhooks",
+              "guides/troubleshooting"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "api/introduction",
+              "api/authentication",
+              "api/rate-limits",
+              "api/errors"
+            ]
+          },
+          {
+            "group": "Events API",
+            "pages": [
+              "api/events/track",
+              "api/events/batch",
+              "api/events/query"
+            ]
+          },
+          {
+            "group": "Analytics API",
+            "pages": [
+              "api/analytics/overview",
+              "api/analytics/pageviews",
+              "api/analytics/events",
+              "api/analytics/sessions",
+              "api/analytics/funnels"
+            ]
+          },
+          {
+            "group": "Projects API",
+            "pages": [
+              "api/projects/list",
+              "api/projects/create",
+              "api/projects/update",
+              "api/projects/delete"
+            ]
+          },
+          {
+            "group": "Links API",
+            "pages": [
+              "api/links/create",
+              "api/links/list",
+              "api/links/analytics"
+            ]
+          },
+          {
+            "group": "Uptime API",
+            "pages": [
+              "api/uptime/monitors",
+              "api/uptime/status",
+              "api/uptime/history"
+            ]
+          },
+          {
+            "group": "SDK Reference",
+            "pages": [
+              "api/sdk/tracker",
+              "api/sdk/react-hooks",
+              "api/sdk/vue-composables",
+              "api/sdk/flags"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Privacy-first analytics with GDPR compliance out of the box",
+    "Real-time event tracking and user behavior analytics",
+    "Custom event tracking with flexible properties",
+    "Goal tracking and conversion analytics",
+    "Funnel analysis for user journey insights",
+    "Feature flags with SDK integration",
+    "Link shortening with analytics tracking",
+    "Website uptime monitoring",
+    "AI-powered analytics insights and reports",
+    "Multi-framework SDK support (JavaScript, React, Vue, Node.js)",
+    "Self-hostable with Docker support",
+    "ClickHouse-powered analytics data warehouse"
+  ],
+  "publicApiSurface": [
+    "track(name, properties) - Track custom events",
+    "flush() - Force send queued events",
+    "clear() - Clear user session",
+    "getAnonymousId() - Get anonymous user ID",
+    "getSessionId() - Get current session ID",
+    "trackError(message, properties) - Track errors",
+    "POST /api/events/track - Track events via API",
+    "POST /api/events/batch - Batch track multiple events",
+    "GET /api/analytics/pageviews - Get pageview analytics",
+    "GET /api/analytics/events - Query event data",
+    "GET /api/analytics/sessions - Get session analytics",
+    "POST /api/links/create - Create short link",
+    "GET /api/links/:id/analytics - Get link analytics",
+    "POST /api/uptime/monitors - Create uptime monitor",
+    "GET /api/uptime/:id/status - Get uptime status",
+    "useDatabuddy() - React hook for tracking",
+    "DatabuddyProvider - React context provider",
+    "useFlags() - React hook for feature flags"
+  ]
+}
