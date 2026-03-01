@@ -1,0 +1,337 @@
+---
+title: 'Rate Limits'
+description: 'Understanding API rate limits and handling rate limit errors'
+---
+
+## Overview
+
+Databuddy implements rate limiting to ensure fair usage and system stability. Rate limits vary based on your authentication method, endpoint, and subscription plan.
+
+## Rate Limit Types
+
+Databuddy uses different rate limits for different types of operations:
+
+### Public API
+
+<ParamField path="type" default="public">
+  Applied to unauthenticated public endpoints
+</ParamField>
+
+<ResponseField name="limit" type="number">
+  60 requests per minute
+</ResponseField>
+
+<ResponseField name="scope" type="string">
+  Per IP address
+</ResponseField>
+
+Used for public-facing endpoints that don't require authentication.
+
+### Standard API
+
+<ParamField path="type" default="api">
+  Applied to authenticated API requests
+</ParamField>
+
+<ResponseField name="limit" type="number">
+  1,000 requests per minute
+</ResponseField>
+
+<ResponseField name="scope" type="string">
+  Per API key or user ID
+</ResponseField>
+
+Applied to most authenticated endpoints including `/v1/query`.
+
+### Authentication Endpoints
+
+<ParamField path="type" default="auth">
+  Applied to login and authentication endpoints
+</ParamField>
+
+<ResponseField name="limit" type="number">
+  10 requests per minute
+</ResponseField>
+
+<ResponseField name="scope" type="string">
+  Per IP address
+</ResponseField>
+
+Protects against brute-force attacks on authentication endpoints.
+
+### Expensive Operations
+
+<ParamField path="type" default="expensive">
+  Applied to resource-intensive queries
+</ParamField>
+
+<ResponseField name="limit" type="number">
+  100 requests per minute
+</ResponseField>
+
+<ResponseField name="scope" type="string">
+  Per API key or user ID
+</ResponseField>
+
+Applied to complex analytics queries, exports, and batch operations.
+
+### Admin Operations
+
+<ParamField path="type" default="admin">
+  Applied to administrative endpoints
+</ParamField>
+
+<ResponseField name="limit" type="number">
+  500 requests per minute
+</ResponseField>
+
+<ResponseField name="scope" type="string">
+  Per admin user ID
+</ResponseField>
+
+Applied to admin-only endpoints.
+
+## Rate Limit Headers
+
+Every API response includes rate limit information in the headers:
+
+<ResponseField name="X-RateLimit-Limit" type="string">
+  The maximum number of requests allowed in the current window
+</ResponseField>
+
+<ResponseField name="X-RateLimit-Remaining" type="string">
+  The number of requests remaining in the current window
+</ResponseField>
+
+<ResponseField name="X-RateLimit-Reset" type="string">
+  Unix timestamp (in seconds) when the rate limit window resets
+</ResponseField>
+
+### Example Response Headers
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+X-RateLimit-Limit: 1000
+X-RateLimit-Remaining: 847
+X-RateLimit-Reset: 1704153600
+```
+
+## Rate Limit Algorithm
+
+Databuddy uses a **sliding window** rate limiting algorithm:
+
+1. Requests are tracked in Redis using sorted sets
+2. Old requests outside the time window are automatically removed
+3. Current request count is checked against the limit
+4. Each successful request adds a timestamped entry
+
+Implementation: `/packages/redis/rate-limit.ts:10-52`
+
+```typescript
+// Pseudocode for rate limiting
+const key = `rl:${identifier}`;
+const now = Date.now();
+const windowMs = 60000; // 60 seconds
+
+// Remove old requests
+await redis.zremrangebyscore(key, 0, now - windowMs);
+
+// Count current requests
+const count = await redis.zcard(key);
+
+if (count >= limit) {
+  return { success: false, remaining: 0 };
+}
+
+// Add current request
+await redis.zadd(key, now, `${now}:${randomId}`);
+return { success: true, remaining: limit - count - 1 };
+```
+
+## Handling Rate Limits
+
+### Rate Limit Exceeded Response
+
+When you exceed the rate limit, you'll receive a 429 status code:
+
+```json
+{
+  "success": false,
+  "error": "Rate limit exceeded. Please try again later.",
+  "code": "RATE_LIMIT_EXCEEDED",
+  "limit": 1000,
+  "remaining": 0,
+  "reset": "2024-01-01T12:00:00.000Z",
+  "retryAfter": 45
+}
+```
+
+<ResponseField name="success" type="boolean">
+  Always `false` for rate limit errors
+</ResponseField>
+
+<ResponseField name="error" type="string">
+  Human-readable error message
+</ResponseField>
+
+<ResponseField name="code" type="string">
+  Error code: `RATE_LIMIT_EXCEEDED`
+</ResponseField>
+
+<ResponseField name="limit" type="number">
+  The rate limit that was exceeded
+</ResponseField>
+
+<ResponseField name="remaining" type="number">
+  Remaining requests (always 0 when rate limited)
+</ResponseField>
+
+<ResponseField name="reset" type="string">
+  ISO 8601 timestamp when the limit resets
+</ResponseField>
+
+<ResponseField name="retryAfter" type="number">
+  Seconds to wait before retrying
+</ResponseField>
+
+### Retry-After Header
+
+Rate limit responses include a `Retry-After` header:
+
+```http
+HTTP/1.1 429 Too Many Requests
+Content-Type: application/json
+Retry-After: 45
+X-RateLimit-Limit: 1000
+X-RateLimit-Remaining: 0
+X-RateLimit-Reset: 1704153600
+```
+
+## Best Practices
+
+### 1. Check Rate Limit Headers
+
+Always inspect the rate limit headers before making additional requests:
+
+```javascript
+const response = await fetch('https://api.databuddy.cc/v1/query', {
+  method: 'POST',
+  headers: { 'x-api-key': API_KEY },
+  body: JSON.stringify(queryData),
+});
+
+const remaining = parseInt(response.headers.get('X-RateLimit-Remaining'));
+const reset = parseInt(response.headers.get('X-RateLimit-Reset'));
+
+if (remaining < 10) {
+  console.warn(`Only ${remaining} requests remaining`);
+  console.warn(`Rate limit resets at ${new Date(reset * 1000)}`);
+}
+```
+
+### 2. Implement Exponential Backoff
+
+When rate limited, use exponential backoff:
+
+```javascript
+async function fetchWithRetry(url, options, maxRetries = 3) {
+  for (let i = 0; i < maxRetries; i++) {
+    const response = await fetch(url, options);
+    
+    if (response.status !== 429) {
+      return response;
+    }
+    
+    const retryAfter = parseInt(response.headers.get('Retry-After')) || 60;
+    const backoff = Math.min(retryAfter * Math.pow(2, i), 300);
+    
+    console.log(`Rate limited. Retrying in ${backoff}s...`);
+    await new Promise(resolve => setTimeout(resolve, backoff * 1000));
+  }
+  
+  throw new Error('Max retries exceeded');
+}
+```
+
+### 3. Batch Requests
+
+The Query API supports batch requests to reduce the number of API calls:
+
+```javascript
+// Instead of multiple requests
+const traffic = await queryAPI({ parameters: ['traffic'] });
+const devices = await queryAPI({ parameters: ['devices'] });
+const geo = await queryAPI({ parameters: ['geo'] });
+
+// Batch them into one
+const data = await queryAPI({
+  parameters: ['traffic', 'devices', 'geo'],
+});
+```
+
+### 4. Cache Responses
+
+Cache API responses when appropriate:
+
+```javascript
+const cache = new Map();
+const CACHE_TTL = 60000; // 60 seconds
+
+async function cachedQuery(params) {
+  const key = JSON.stringify(params);
+  const cached = cache.get(key);
+  
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.data;
+  }
+  
+  const data = await queryAPI(params);
+  cache.set(key, { data, timestamp: Date.now() });
+  return data;
+}
+```
+
+### 5. Monitor Usage
+
+Track your rate limit usage over time:
+
+```javascript
+const rateLimitMetrics = [];
+
+function trackRateLimit(response) {
+  rateLimitMetrics.push({
+    timestamp: Date.now(),
+    remaining: parseInt(response.headers.get('X-RateLimit-Remaining')),
+    limit: parseInt(response.headers.get('X-RateLimit-Limit')),
+  });
+  
+  // Alert if consistently low
+  const recent = rateLimitMetrics.slice(-10);
+  const avgRemaining = recent.reduce((sum, m) => sum + m.remaining, 0) / recent.length;
+  
+  if (avgRemaining < recent[0].limit * 0.1) {
+    console.warn('Approaching rate limit consistently');
+  }
+}
+```
+
+## Custom Rate Limits
+
+For enterprise customers, custom rate limits can be configured:
+
+- Higher request limits
+- Burst allowances
+- Dedicated rate limit pools
+
+Contact support to discuss custom rate limits for your use case.
+
+## Rate Limit Exemptions
+
+Certain endpoints are exempt from rate limiting:
+
+- Health check endpoints (`/health`)
+- Webhook endpoints (`/webhooks/*`)
+- Internal RPC calls (when bypassed)
+
+See `/apps/api/src/middleware/rate-limit.ts:35-37` for implementation details.

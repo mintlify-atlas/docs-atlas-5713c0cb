@@ -1,0 +1,578 @@
+---
+title: 'Configuration'
+description: 'Complete reference for all Databuddy SDK configuration options'
+icon: 'gear'
+---
+
+## Overview
+
+This page documents all configuration options available across the Databuddy SDK. Options are applicable to browser (JavaScript, React, Vue) and Node.js SDKs unless otherwise noted.
+
+## Core Options
+
+### clientId
+
+<ParamField path="clientId" type="string">
+  Your Databuddy project client ID. Get this from your dashboard.
+  
+  **Browser SDK only.** For Node.js, use `apiKey` instead.
+  
+  **Auto-detected** from `NEXT_PUBLIC_DATABUDDY_CLIENT_ID` environment variable if not provided.
+  
+  ```tsx
+  <Databuddy clientId="3ed1fce1-5a56-4cbc-a917-66864f6d18e3" />
+  ```
+</ParamField>
+
+### apiKey
+
+<ParamField path="apiKey" type="string" required>
+  Your API key for authentication. **Node.js SDK only.**
+  
+  Format: `dbdy_xxx`
+  
+  ```typescript
+  const analytics = new Databuddy({
+    apiKey: process.env.DATABUDDY_API_KEY!
+  });
+  ```
+</ParamField>
+
+### apiUrl
+
+<ParamField path="apiUrl" type="string" default="https://basket.databuddy.cc">
+  Custom API endpoint for event ingestion.
+  
+  ```tsx
+  <Databuddy apiUrl="https://custom.example.com" />
+  ```
+</ParamField>
+
+### scriptUrl
+
+<ParamField path="scriptUrl" type="string" default="https://cdn.databuddy.cc/databuddy.js">
+  Custom script URL for the browser bundle. **Browser SDK only.**
+  
+  ```tsx
+  <Databuddy scriptUrl="https://cdn.example.com/databuddy.js" />
+  ```
+</ParamField>
+
+### disabled
+
+<ParamField path="disabled" type="boolean" default={false}>
+  Disable all tracking. No events will be sent.
+  
+  ```tsx
+  <Databuddy disabled={!userConsent} />
+  ```
+</ParamField>
+
+### debug
+
+<ParamField path="debug" type="boolean" default={false}>
+  Enable debug logging to console.
+  
+  ```tsx
+  <Databuddy debug={process.env.NODE_ENV === 'development'} />
+  ```
+</ParamField>
+
+## Tracking Features
+
+### trackWebVitals
+
+<ParamField path="trackWebVitals" type="boolean" default={false}>
+  Track Core Web Vitals metrics: LCP, FID, CLS, TTFB, FCP.
+  
+  ```tsx
+  <Databuddy trackWebVitals />
+  ```
+</ParamField>
+
+### trackErrors
+
+<ParamField path="trackErrors" type="boolean" default={false}>
+  Track JavaScript errors automatically.
+  
+  ```tsx
+  <Databuddy trackErrors />
+  ```
+</ParamField>
+
+### trackScrollDepth
+
+<ParamField path="trackScrollDepth" type="boolean" default={false}>
+  Track scroll depth percentage at 25%, 50%, 75%, 100%.
+  
+  ```tsx
+  <Databuddy trackScrollDepth />
+  ```
+</ParamField>
+
+### trackOutgoingLinks
+
+<ParamField path="trackOutgoingLinks" type="boolean" default={false}>
+  Track clicks on external links.
+  
+  ```tsx
+  <Databuddy trackOutgoingLinks />
+  ```
+</ParamField>
+
+### trackInteractions
+
+<ParamField path="trackInteractions" type="boolean" default={false}>
+  Track user interactions (clicks, form submissions).
+  
+  ```tsx
+  <Databuddy trackInteractions />
+  ```
+</ParamField>
+
+### trackAttributes
+
+<ParamField path="trackAttributes" type="boolean" default={false}>
+  Enable declarative tracking via `data-track` attributes.
+  
+  ```tsx
+  <Databuddy trackAttributes />
+  ```
+  
+  ```html
+  <button data-track="cta_clicked" data-location="hero">
+    Get Started
+  </button>
+  ```
+</ParamField>
+
+### trackHashChanges
+
+<ParamField path="trackHashChanges" type="boolean" default={false}>
+  Track hash changes in the URL (e.g., `#section`).
+  
+  ```tsx
+  <Databuddy trackHashChanges />
+  ```
+</ParamField>
+
+### trackPerformance
+
+<ParamField path="trackPerformance" type="boolean" default={true}>
+  Track page performance metrics.
+  
+  ```tsx
+  <Databuddy trackPerformance={false} />
+  ```
+</ParamField>
+
+## Batching & Performance
+
+### enableBatching
+
+<ParamField path="enableBatching" type="boolean" default={true}>
+  Enable event batching to reduce network requests.
+  
+  ```typescript
+  const analytics = new Databuddy({
+    apiKey: process.env.DATABUDDY_API_KEY!,
+    enableBatching: true
+  });
+  ```
+</ParamField>
+
+### batchSize
+
+<ParamField path="batchSize" type="number" default={10}>
+  Number of events to batch before sending.
+  
+  **Min:** 1, **Max:** 50 (browser), 100 (Node.js)
+  
+  ```tsx
+  <Databuddy batchSize={20} />
+  ```
+</ParamField>
+
+### batchTimeout
+
+<ParamField path="batchTimeout" type="number" default={2000}>
+  Time in milliseconds before auto-flushing batched events.
+  
+  **Min:** 100, **Max:** 30000
+  
+  ```tsx
+  <Databuddy batchTimeout={5000} />
+  ```
+</ParamField>
+
+### samplingRate
+
+<ParamField path="samplingRate" type="number" default={1.0}>
+  Fraction of sessions to track (0.0 to 1.0).
+  
+  Example: `0.5` = track 50% of sessions
+  
+  ```tsx
+  <Databuddy samplingRate={0.5} />
+  ```
+</ParamField>
+
+## Retry Configuration
+
+### enableRetries
+
+<ParamField path="enableRetries" type="boolean" default={false}>
+  Enable automatic retries for failed requests.
+  
+  ```tsx
+  <Databuddy enableRetries />
+  ```
+</ParamField>
+
+### maxRetries
+
+<ParamField path="maxRetries" type="number" default={3}>
+  Maximum number of retry attempts.
+  
+  Only used if `enableRetries` is true.
+  
+  ```tsx
+  <Databuddy enableRetries maxRetries={5} />
+  ```
+</ParamField>
+
+### initialRetryDelay
+
+<ParamField path="initialRetryDelay" type="number" default={500}>
+  Initial delay in milliseconds before first retry. Uses exponential backoff.
+  
+  Only used if `enableRetries` is true.
+  
+  ```tsx
+  <Databuddy enableRetries initialRetryDelay={1000} />
+  ```
+</ParamField>
+
+## Privacy & Filtering
+
+### ignoreBotDetection
+
+<ParamField path="ignoreBotDetection" type="boolean" default={false}>
+  Disable bot detection and track all visitors including bots.
+  
+  ```tsx
+  <Databuddy ignoreBotDetection />
+  ```
+</ParamField>
+
+### skipPatterns
+
+<ParamField path="skipPatterns" type="string[]" default={[]}>
+  Array of glob patterns to skip tracking on matching paths.
+  
+  ```tsx
+  <Databuddy skipPatterns={['/admin/**', '/internal/**']} />
+  ```
+</ParamField>
+
+### maskPatterns
+
+<ParamField path="maskPatterns" type="string[]" default={[]}>
+  Array of glob patterns to mask sensitive paths.
+  
+  Wildcards are replaced with asterisks in tracked URLs.
+  
+  ```tsx
+  <Databuddy maskPatterns={['/users/*', '/accounts/*/settings']} />
+  ```
+  
+  `/users/12345` becomes `/users/*`
+</ParamField>
+
+### filter
+
+<ParamField path="filter" type="(event: any) => boolean">
+  Function to conditionally skip events. Return `false` to skip.
+  
+  **Browser SDK only.** Must be set via `window.databuddyConfig` before script loads.
+  
+  ```javascript
+  window.databuddyConfig = {
+    filter: (event) => {
+      // Skip admin pages
+      return !event.path?.includes('/admin');
+    }
+  };
+  ```
+</ParamField>
+
+## Node.js Specific
+
+### websiteId
+
+<ParamField path="websiteId" type="string">
+  Default website ID to scope events to. **Node.js SDK only.**
+  
+  Can be overridden per event.
+  
+  ```typescript
+  const analytics = new Databuddy({
+    apiKey: process.env.DATABUDDY_API_KEY!,
+    websiteId: 'website-uuid'
+  });
+  ```
+</ParamField>
+
+### namespace
+
+<ParamField path="namespace" type="string">
+  Default namespace for logical grouping. **Node.js SDK only.**
+  
+  Examples: `'billing'`, `'auth'`, `'api'`
+  
+  ```typescript
+  const analytics = new Databuddy({
+    apiKey: process.env.DATABUDDY_API_KEY!,
+    namespace: 'billing'
+  });
+  ```
+</ParamField>
+
+### source
+
+<ParamField path="source" type="string">
+  Default source identifier for events. **Node.js SDK only.**
+  
+  Examples: `'backend'`, `'webhook'`, `'cron'`
+  
+  ```typescript
+  const analytics = new Databuddy({
+    apiKey: process.env.DATABUDDY_API_KEY!,
+    source: 'api_server'
+  });
+  ```
+</ParamField>
+
+### maxQueueSize
+
+<ParamField path="maxQueueSize" type="number" default={1000}>
+  Maximum number of events to queue before dropping. **Node.js SDK only.**
+  
+  ```typescript
+  const analytics = new Databuddy({
+    apiKey: process.env.DATABUDDY_API_KEY!,
+    maxQueueSize: 5000
+  });
+  ```
+</ParamField>
+
+### middleware
+
+<ParamField path="middleware" type="Middleware[]" default={[]}>
+  Array of middleware functions to transform or filter events. **Node.js SDK only.**
+  
+  Middleware runs before deduplication and batching.
+  
+  ```typescript
+  import type { Middleware } from '@databuddy/sdk/node';
+  
+  const enrichMiddleware: Middleware = (event) => {
+    return {
+      ...event,
+      properties: {
+        ...event.properties,
+        serverTime: Date.now()
+      }
+    };
+  };
+  
+  const analytics = new Databuddy({
+    apiKey: process.env.DATABUDDY_API_KEY!,
+    middleware: [enrichMiddleware]
+  });
+  ```
+</ParamField>
+
+### enableDeduplication
+
+<ParamField path="enableDeduplication" type="boolean" default={true}>
+  Enable event deduplication based on `eventId`. **Node.js SDK only.**
+  
+  ```typescript
+  const analytics = new Databuddy({
+    apiKey: process.env.DATABUDDY_API_KEY!,
+    enableDeduplication: true
+  });
+  ```
+</ParamField>
+
+### maxDeduplicationCacheSize
+
+<ParamField path="maxDeduplicationCacheSize" type="number" default={10000}>
+  Maximum deduplication cache size. **Node.js SDK only.**
+  
+  ```typescript
+  const analytics = new Databuddy({
+    apiKey: process.env.DATABUDDY_API_KEY!,
+    maxDeduplicationCacheSize: 50000
+  });
+  ```
+</ParamField>
+
+### logger
+
+<ParamField path="logger" type="Logger">
+  Custom logger instance. **Node.js SDK only.**
+  
+  ```typescript
+  import type { Logger } from '@databuddy/sdk/node';
+  import pino from 'pino';
+  
+  const pinoLogger = pino();
+  
+  const customLogger: Logger = {
+    debug: (msg, meta) => pinoLogger.debug(meta, msg),
+    info: (msg, meta) => pinoLogger.info(meta, msg),
+    warn: (msg, meta) => pinoLogger.warn(meta, msg),
+    error: (msg, meta) => pinoLogger.error(meta, msg),
+  };
+  
+  const analytics = new Databuddy({
+    apiKey: process.env.DATABUDDY_API_KEY!,
+    logger: customLogger
+  });
+  ```
+</ParamField>
+
+## Advanced Options
+
+### sdk
+
+<ParamField path="sdk" type="string" default="web">
+  SDK name for analytics identification.
+  
+  **Only override for custom integrations.**
+  
+  ```tsx
+  <Databuddy sdk="custom" />
+  ```
+</ParamField>
+
+### sdkVersion
+
+<ParamField path="sdkVersion" type="string">
+  SDK version (defaults to package version).
+  
+  **Only override for custom builds.**
+  
+  ```tsx
+  <Databuddy sdkVersion="2.0.0-custom" />
+  ```
+</ParamField>
+
+### usePixel
+
+<ParamField path="usePixel" type="boolean" default={false}>
+  Use pixel tracking (1x1 image) instead of script.
+  
+  **Browser SDK only.** Useful for email tracking or no-JS environments.
+  
+  ```tsx
+  <Databuddy usePixel />
+  ```
+</ParamField>
+
+### clientSecret
+
+<ParamField path="clientSecret" type="string">
+  Client secret for server-side operations.
+  
+  **Not required for browser usage.** Never expose in client-side code.
+</ParamField>
+
+## Environment Variables
+
+### Browser SDK
+
+| Variable | Description | Example |
+|----------|-------------|----------|
+| `NEXT_PUBLIC_DATABUDDY_CLIENT_ID` | Auto-detected client ID | `3ed1fce1-5a56-4cbc-a917-66864f6d18e3` |
+
+### Node.js SDK
+
+| Variable | Description | Example |
+|----------|-------------|----------|
+| `DATABUDDY_API_KEY` | API key | `dbdy_xxx` |
+| `DATABUDDY_WEBSITE_ID` | Default website ID | `website-uuid` |
+
+## Configuration Examples
+
+### Production Browser Setup
+
+```tsx
+<Databuddy
+  // Auto-detected from NEXT_PUBLIC_DATABUDDY_CLIENT_ID
+  trackWebVitals
+  trackErrors
+  trackScrollDepth
+  trackOutgoingLinks
+  enableBatching
+  batchSize={20}
+  samplingRate={1.0}
+  skipPatterns={['/admin/**']}
+  maskPatterns={['/users/*']}
+/>
+```
+
+### Development Browser Setup
+
+```tsx
+<Databuddy
+  clientId="dev-client-id"
+  debug
+  samplingRate={1.0}
+  trackWebVitals
+/>
+```
+
+### Node.js Production Setup
+
+```typescript
+const analytics = new Databuddy({
+  apiKey: process.env.DATABUDDY_API_KEY!,
+  websiteId: process.env.DATABUDDY_WEBSITE_ID,
+  namespace: 'api',
+  source: 'backend',
+  enableBatching: true,
+  batchSize: 50,
+  batchTimeout: 5000,
+  enableDeduplication: true,
+});
+```
+
+### Node.js Serverless Setup
+
+```typescript
+const analytics = new Databuddy({
+  apiKey: process.env.DATABUDDY_API_KEY!,
+  enableBatching: false, // Disable batching for serverless
+  debug: process.env.NODE_ENV !== 'production',
+});
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="JavaScript SDK" icon="js" href="/sdk/javascript">
+    Vanilla JavaScript usage guide
+  </Card>
+  <Card title="React SDK" icon="react" href="/sdk/react">
+    React hooks and components
+  </Card>
+  <Card title="Vue SDK" icon="vuejs" href="/sdk/vue">
+    Vue 3 composables and plugins
+  </Card>
+  <Card title="Node.js SDK" icon="server" href="/sdk/nodejs">
+    Server-side event tracking
+  </Card>
+</CardGroup>

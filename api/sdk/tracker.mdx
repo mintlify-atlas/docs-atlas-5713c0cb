@@ -1,0 +1,241 @@
+---
+title: 'Core Tracker'
+description: 'Browser tracking SDK for pageviews, events, and web vitals'
+---
+
+## Installation
+
+Install the SDK package:
+
+```bash
+npm install @databuddy/sdk
+```
+
+## Quick Start
+
+Import and use the tracking functions:
+
+```typescript
+import { track, flush, clear } from '@databuddy/sdk';
+
+// Track custom event
+track('button_click', {
+  buttonName: 'checkout',
+  value: 99.99
+});
+
+// Force send queued events
+flush();
+
+// Clear session (e.g., on logout)
+clear();
+```
+
+## Core Functions
+
+### track()
+
+Tracks a custom event with optional properties.
+
+```typescript
+track(name: string, properties?: Record<string, unknown>): void
+```
+
+**Parameters:**
+
+- `name` - Event name (e.g., `"signup"`, `"purchase"`, `"feature_used"`)
+- `properties` - Key-value pairs of event metadata
+
+**Example:**
+
+```typescript
+track('item_purchased', {
+  itemId: 'sku-123',
+  price: 29.99,
+  currency: 'USD',
+  category: 'electronics'
+});
+```
+
+### trackError()
+
+Tracks an error event with context.
+
+```typescript
+trackError(message: string, properties?: {
+  filename?: string;
+  lineno?: number;
+  colno?: number;
+  stack?: string;
+  error_type?: string;
+  [key: string]: unknown;
+}): void
+```
+
+**Example:**
+
+```typescript
+try {
+  await riskyOperation();
+} catch (error) {
+  trackError(error.message, {
+    stack: error.stack,
+    error_type: error.name,
+    context: 'checkout_flow',
+    userId: currentUser.id
+  });
+}
+```
+
+### flush()
+
+Forces all queued events to be sent immediately.
+
+```typescript
+flush(): void
+```
+
+**Example:**
+
+```typescript
+// Ensure event is sent before navigation
+function handleExternalLink(url: string) {
+  track('external_link_clicked', { url });
+  flush(); // Send immediately
+  window.location.href = url;
+}
+```
+
+### clear()
+
+Clears the current session and generates new IDs.
+
+```typescript
+clear(): void
+```
+
+**Example:**
+
+```typescript
+async function handleLogout() {
+  await signOut();
+  clear(); // Reset tracking identity
+  router.push('/login');
+}
+```
+
+## Identity Functions
+
+### getAnonymousId()
+
+Returns the persistent anonymous user ID.
+
+```typescript
+getAnonymousId(urlParams?: URLSearchParams): string | null
+```
+
+**Example:**
+
+```typescript
+const anonId = getAnonymousId();
+await fetch('/api/identify', {
+  body: JSON.stringify({ anonId })
+});
+```
+
+### getSessionId()
+
+Returns the current session ID (resets after 30 min inactivity).
+
+```typescript
+getSessionId(urlParams?: URLSearchParams): string | null
+```
+
+### getTrackingIds()
+
+Returns both anonymous ID and session ID.
+
+```typescript
+getTrackingIds(urlParams?: URLSearchParams): {
+  anonId: string | null;
+  sessionId: string | null;
+}
+```
+
+**Example:**
+
+```typescript
+const { anonId, sessionId } = getTrackingIds();
+await api.identify({
+  anonId,
+  sessionId,
+  userId: user.id
+});
+```
+
+### getTrackingParams()
+
+Returns tracking IDs as URL query string for cross-domain tracking.
+
+```typescript
+getTrackingParams(urlParams?: URLSearchParams): string
+```
+
+**Example:**
+
+```typescript
+// Link to subdomain with tracking continuity
+const params = getTrackingParams();
+const url = `https://app.example.com/dashboard${params ? `?${params}` : ''}`;
+
+// In JSX
+<a href={`https://shop.example.com?${getTrackingParams()}`}>
+  Visit Shop
+</a>
+```
+
+## Utility Functions
+
+### isTrackerAvailable()
+
+Checks if the tracker script is loaded.
+
+```typescript
+isTrackerAvailable(): boolean
+```
+
+**Example:**
+
+```typescript
+if (isTrackerAvailable()) {
+  track('feature_used', { feature: 'export' });
+} else {
+  console.warn('Tracker not loaded yet');
+}
+```
+
+### getTracker()
+
+Returns the raw tracker instance.
+
+```typescript
+getTracker(): DatabuddyTracker | null
+```
+
+**Example:**
+
+```typescript
+const tracker = getTracker();
+if (tracker) {
+  // Access low-level tracker methods
+  tracker.track('event', { prop: 'value' });
+}
+```
+
+## Best Practices
+
+1. **Use `flush()` before navigation** - Ensure events are captured before page unload
+2. **Call `clear()` on logout** - Reset identity for multi-user devices
+3. **Track errors** - Use `trackError()` to monitor client-side errors
+4. **Cross-domain tracking** - Use `getTrackingParams()` to preserve identity across domains
+5. **Server-side identification** - Use `getTrackingIds()` to correlate client and server events

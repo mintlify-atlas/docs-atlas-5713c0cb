@@ -1,0 +1,276 @@
+---
+title: 'Analytics API Overview'
+description: 'Query analytics data for pageviews, events, sessions, and funnels'
+---
+
+## Overview
+
+The Databuddy Analytics API provides privacy-first access to your website analytics data. Query pageviews, custom events, user sessions, and conversion funnels using a flexible REST API.
+
+## Base URL
+
+```
+https://api.databuddy.com/v1/query
+```
+
+## Authentication
+
+All analytics API requests require authentication using either:
+
+- **API Key**: Include in the `Authorization` header as `Bearer <api_key>`
+- **Session Cookie**: Authenticated user session
+
+API keys require the `read:data` scope to access analytics endpoints.
+
+## Query Endpoint
+
+The main analytics endpoint accepts flexible query requests:
+
+```bash
+POST /v1/query
+```
+
+### Query Parameters
+
+<ParamField query="website_id" type="string">
+  The website ID to query analytics for. Required for website-specific queries.
+</ParamField>
+
+<ParamField query="schedule_id" type="string">
+  The uptime schedule ID for uptime monitor queries.
+</ParamField>
+
+<ParamField query="link_id" type="string">
+  The link ID for link shortener analytics.
+</ParamField>
+
+<ParamField query="organization_id" type="string">
+  The organization ID for organization-level queries (e.g., LLM analytics).
+</ParamField>
+
+<ParamField query="timezone" type="string" default="UTC">
+  Timezone for date calculations (e.g., `America/New_York`).
+</ParamField>
+
+### Request Body
+
+<ParamField body="parameters" type="array" required>
+  Array of query types to execute. Can be strings (e.g., `"top_pages"`) or objects with additional configuration:
+  
+  ```json
+  {
+    "name": "top_pages",
+    "start_date": "2024-01-01",
+    "end_date": "2024-01-31",
+    "granularity": "daily",
+    "id": "pages_query"
+  }
+  ```
+</ParamField>
+
+<ParamField body="startDate" type="string">
+  Start date in `YYYY-MM-DD` format or ISO datetime (e.g., `2024-01-01` or `2024-01-01T00:00:00Z`).
+</ParamField>
+
+<ParamField body="endDate" type="string">
+  End date in `YYYY-MM-DD` format or ISO datetime.
+</ParamField>
+
+<ParamField body="preset" type="string">
+  Date preset to use instead of explicit dates. Options: `today`, `yesterday`, `last_7d`, `last_14d`, `last_30d`, `last_90d`, `this_week`, `last_week`, `this_month`, `last_month`, `this_year`.
+</ParamField>
+
+<ParamField body="granularity" type="string" default="daily">
+  Time granularity for time-series queries: `hourly`, `daily`, `hour`, or `day`. Hourly queries support up to 30 days.
+</ParamField>
+
+<ParamField body="filters" type="array">
+  Array of filters to apply to queries:
+  
+  ```json
+  [
+    {
+      "field": "country",
+      "op": "eq",
+      "value": "US"
+    },
+    {
+      "field": "device_type",
+      "op": "in",
+      "value": ["desktop", "mobile"]
+    }
+  ]
+  ```
+  
+  Available operators: `eq`, `ne`, `contains`, `not_contains`, `starts_with`, `in`, `not_in`.
+</ParamField>
+
+<ParamField body="limit" type="number" default="100">
+  Maximum number of results per query (1-10000).
+</ParamField>
+
+<ParamField body="page" type="number" default="1">
+  Page number for pagination (1-based).
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates if the request was successful.
+</ResponseField>
+
+<ResponseField name="requestId" type="string">
+  Unique request ID for tracking and debugging.
+</ResponseField>
+
+<ResponseField name="queryId" type="string">
+  Query ID from the request (if provided).
+</ResponseField>
+
+<ResponseField name="data" type="array">
+  Array of query results, one per parameter:
+  
+  ```json
+  [
+    {
+      "parameter": "top_pages",
+      "success": true,
+      "data": [...],
+      "error": null
+    }
+  ]
+  ```
+</ResponseField>
+
+<ResponseField name="meta" type="object">
+  Query metadata including parameters, pagination, and filter counts.
+</ResponseField>
+
+## Available Query Types
+
+Retrieve available query types and their configurations:
+
+```bash
+GET /v1/query/types?include_meta=true
+```
+
+<ResponseField name="types" type="array">
+  Array of available query type names.
+</ResponseField>
+
+<ResponseField name="configs" type="object">
+  Configuration for each query type including allowed filters, limits, and customization options.
+</ResponseField>
+
+<ResponseField name="presets" type="array">
+  Available date presets.
+</ResponseField>
+
+## List Accessible Websites
+
+Get websites accessible with your credentials:
+
+```bash
+GET /v1/query/websites
+```
+
+<ResponseField name="websites" type="array">
+  Array of websites you have access to query.
+</ResponseField>
+
+<ResponseField name="total" type="number">
+  Total number of accessible websites.
+</ResponseField>
+
+## Batch Queries
+
+Execute multiple queries in a single request by passing an array of query objects:
+
+```bash
+POST /v1/query?website_id=web_123
+Content-Type: application/json
+
+[
+  {
+    "id": "query_1",
+    "parameters": ["top_pages"],
+    "preset": "last_7d"
+  },
+  {
+    "id": "query_2",
+    "parameters": ["summary_metrics"],
+    "preset": "last_30d"
+  }
+]
+```
+
+## Error Handling
+
+Error responses include detailed information:
+
+```json
+{
+  "success": false,
+  "error": "Invalid date preset: last_7days",
+  "code": "VALIDATION_ERROR",
+  "requestId": "req_abc123",
+  "details": [
+    {
+      "field": "preset",
+      "message": "Invalid date preset: last_7days",
+      "suggestion": "Did you mean 'last_7d'? Valid presets: today, yesterday, last_7d, ..."
+    }
+  ]
+}
+```
+
+Common error codes:
+- `AUTH_REQUIRED` (401): Authentication required
+- `ACCESS_DENIED` (403): No access to the resource
+- `VALIDATION_ERROR` (400): Invalid request parameters
+- `MISSING_PROJECT_ID` (400): Missing website_id or other project identifier
+
+## Example Request
+
+```bash
+curl -X POST 'https://api.databuddy.com/v1/query?website_id=web_abc123' \
+  -H 'Authorization: Bearer db_key_...' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "parameters": [
+      "top_pages",
+      "summary_metrics",
+      {
+        "name": "events_by_date",
+        "granularity": "hourly",
+        "id": "hourly_trends"
+      }
+    ],
+    "preset": "last_7d",
+    "filters": [
+      {
+        "field": "country",
+        "op": "eq",
+        "value": "US"
+      }
+    ],
+    "limit": 50
+  }'
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Pageview Analytics" icon="eye" href="/api/analytics/pageviews">
+    Query pageview data and top pages
+  </Card>
+  <Card title="Custom Events" icon="bolt" href="/api/analytics/events">
+    Track and query custom events
+  </Card>
+  <Card title="Session Analytics" icon="clock" href="/api/analytics/sessions">
+    Analyze user sessions and behavior
+  </Card>
+  <Card title="Funnel Analytics" icon="filter" href="/api/analytics/funnels">
+    Track conversion funnels
+  </Card>
+</CardGroup>

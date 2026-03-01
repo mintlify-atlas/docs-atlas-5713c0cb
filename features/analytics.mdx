@@ -1,0 +1,237 @@
+---
+title: Analytics
+description: Analyze website traffic, user behavior, and performance metrics with privacy-first analytics
+---
+
+Databuddy's analytics engine provides comprehensive insights into your website's performance while respecting user privacy. No cookies required, no personal data collected.
+
+## Viewing Analytics Data
+
+### Summary Metrics
+
+Access high-level statistics on the main dashboard:
+
+- **Pageviews**: Total number of page loads
+- **Visitors**: Unique anonymous visitor count
+- **Sessions**: Number of user sessions
+- **Bounce Rate**: Percentage of single-page sessions (site-level only)
+- **Session Duration**: Average time spent per session
+
+<Warning>
+Bounce rate is calculated at the site level only. Individual page bounce rates cannot be accurately computed from pageview/visitor ratios.
+</Warning>
+
+### Top Pages
+
+View your most popular pages ranked by:
+
+- Total pageviews
+- Unique visitors
+- Average time on page
+- Entry pages (where sessions begin)
+- Exit pages (where sessions end)
+
+Click any page to drill down into page-specific analytics.
+
+### Traffic Sources
+
+Understand where your visitors come from:
+
+- **Direct**: Visitors who typed your URL or used bookmarks
+- **Referrers**: External websites linking to you
+- **Search Engines**: Organic search traffic (with search engine breakdown)
+- **Social Media**: Traffic from social platforms
+- **UTM Campaigns**: Tracked marketing campaigns
+
+### Device & Browser Analytics
+
+See what devices and browsers your visitors use:
+
+- Device type (Desktop, Mobile, Tablet)
+- Operating system distribution
+- Browser breakdown (name and version)
+- Screen resolution
+- Viewport size
+
+### Geographic Analytics
+
+Visualize visitor locations:
+
+- Country-level breakdown with interactive map
+- Region/state distribution
+- City-level data
+- Timezone information
+
+Geographic data is derived from IP addresses (hashed for privacy) using MaxMind GeoIP2.
+
+## Date Ranges & Time Units
+
+### Preset Ranges
+
+Quickly select common time periods:
+
+- Last 7 days
+- Last 30 days
+- Last 90 days
+- Month to date
+- Year to date
+
+### Custom Ranges
+
+Define exact start and end dates:
+
+1. Click the date picker in the toolbar
+2. Select a start date
+3. Select an end date
+4. Click Apply
+
+### Time Unit Granularity
+
+View trends by different time units:
+
+- **Hour**: For recent 24-48 hour analysis
+- **Day**: Default for most date ranges
+- **Week**: For monthly/quarterly views
+- **Month**: For yearly comparisons
+
+<Tip>
+Time units automatically adjust based on your selected date range for optimal visualization.
+</Tip>
+
+## Filters
+
+### Available Filter Fields
+
+Filter analytics by:
+
+- **Page/Path**: Specific URLs or path patterns
+- **Referrer**: Traffic source domain or URL
+- **Country**: Geographic location
+- **Device Type**: Desktop, Mobile, or Tablet
+- **Browser**: Browser name
+- **OS**: Operating system
+- **UTM Parameters**: Source, medium, campaign, term, content
+- **Custom Event Properties**: Filter by event metadata
+
+### Filter Operators
+
+- `equals`: Exact match
+- `contains`: Substring match
+- `not_equals`: Exclude exact match
+- `in`: Match any value in list
+- `not_in`: Exclude all values in list
+
+### Combining Filters
+
+Apply multiple filters simultaneously (AND logic):
+
+```json
+[
+  { "field": "country", "operator": "equals", "value": "US" },
+  { "field": "device_type", "operator": "equals", "value": "mobile" }
+]
+```
+
+This filters to mobile visitors from the United States.
+
+## Custom Events
+
+Track custom user interactions beyond pageviews:
+
+### Discovering Events
+
+View all tracked events with:
+
+- Event names
+- Property keys
+- Top property values
+- Event frequency
+
+### Event Properties
+
+Analyze event metadata:
+
+- **Property cardinality**: Count unique values
+- **Property distribution**: See value frequency
+- **Property classification**: Automatic type detection
+- **Recent events**: View latest occurrences with full context
+
+### Event Trends
+
+Visualize event frequency over time:
+
+- Daily/hourly event counts
+- Compare multiple events
+- Filter by property values
+
+## Performance Metrics
+
+Monitor website performance:
+
+- **Time to First Byte (TTFB)**: Server response time
+- **DOM Ready Time**: Time until DOM is interactive
+- **Load Time**: Total page load duration
+- **Render Time**: Time to first render
+- **Redirect Time**: Time spent in redirects
+- **Domain Lookup Time**: DNS resolution duration
+
+### Web Vitals
+
+Track Core Web Vitals automatically:
+
+- **LCP (Largest Contentful Paint)**: Loading performance
+- **FID (First Input Delay)**: Interactivity
+- **CLS (Cumulative Layout Shift)**: Visual stability
+
+<Info>
+Performance metrics are collected using the Navigation Timing API and reported by the Databuddy tracker.
+</Info>
+
+## Engagement Metrics
+
+Understand user engagement:
+
+- **Time on Page**: Duration spent on each page
+- **Scroll Depth**: How far users scroll (percentage)
+- **Interaction Count**: Number of clicks/interactions per session
+- **Page Count**: Pages viewed per session
+
+## Exporting Data
+
+Export analytics data for external analysis:
+
+1. Configure your desired filters and date range
+2. Click the export button
+3. Choose format (CSV or JSON)
+4. Download the file
+
+<Note>
+Exports respect your current filters and date range selections.
+</Note>
+
+## Privacy Features
+
+Databuddy is built privacy-first:
+
+- **No cookies**: Uses sessionStorage and localStorage
+- **IP hashing**: IPs are hashed before storage (SHA-256)
+- **Anonymous IDs**: Random UUIDs, no personal identifiers
+- **No cross-site tracking**: Each domain is isolated
+- **GDPR compliant**: No consent banners required
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Goals" icon="bullseye" href="/features/goals">
+    Set up conversion tracking
+  </Card>
+  <Card title="Funnels" icon="filter" href="/features/funnels">
+    Analyze multi-step user journeys
+  </Card>
+  <Card title="AI Insights" icon="sparkles" href="/features/ai-insights">
+    Get automated insights and ask questions
+  </Card>
+  <Card title="Dashboard" icon="chart-line" href="/features/dashboard">
+    Return to dashboard overview
+  </Card>
+</CardGroup>

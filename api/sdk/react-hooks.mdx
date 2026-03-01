@@ -1,0 +1,184 @@
+---
+title: 'React Hooks'
+description: 'React integration for Databuddy tracking and feature flags'
+---
+
+## Installation
+
+```bash
+npm install @databuddy/sdk
+```
+
+## Setup
+
+Add the `<Databuddy />` component to your root layout:
+
+```tsx
+// app/layout.tsx (Next.js App Router)
+import { Databuddy } from '@databuddy/sdk/react';
+
+export default function RootLayout({ children }) {
+  return (
+    <html>
+      <body>
+        {children}
+        <Databuddy
+          clientId={process.env.NEXT_PUBLIC_DATABUDDY_CLIENT_ID}
+          trackWebVitals
+          trackErrors
+          trackScrollDepth
+        />
+      </body>
+    </html>
+  );
+}
+```
+
+## Configuration Props
+
+<ParamField body="clientId" type="string" required>
+  Website ID from dashboard (auto-detected from `NEXT_PUBLIC_DATABUDDY_CLIENT_ID` if not provided)
+</ParamField>
+
+<ParamField body="apiUrl" type="string">
+  Tracking endpoint URL. Default: `https://basket.databuddy.cc`
+</ParamField>
+
+<ParamField body="trackWebVitals" type="boolean">
+  Enable Core Web Vitals tracking (LCP, FID, CLS)
+</ParamField>
+
+<ParamField body="trackErrors" type="boolean">
+  Automatically track JavaScript errors
+</ParamField>
+
+<ParamField body="trackScrollDepth" type="boolean">
+  Track scroll depth (25%, 50%, 75%, 100%)
+</ParamField>
+
+<ParamField body="trackOutgoingLinks" type="boolean">
+  Track clicks on external links
+</ParamField>
+
+<ParamField body="disabled" type="boolean">
+  Disable tracking (useful for development)
+</ParamField>
+
+<ParamField body="debug" type="boolean">
+  Enable debug logging
+</ParamField>
+
+## Using Tracking Functions
+
+Import and use tracking functions in any component:
+
+```tsx
+import { track, flush } from '@databuddy/sdk';
+
+function CheckoutButton() {
+  const handleClick = () => {
+    track('checkout_clicked', {
+      cartSize: 3,
+      cartValue: 149.97
+    });
+  };
+
+  return <button onClick={handleClick}>Checkout</button>;
+}
+```
+
+## React Component Example
+
+```tsx
+import { useEffect } from 'react';
+import { track } from '@databuddy/sdk';
+
+function ProductPage({ product }) {
+  useEffect(() => {
+    // Track product view
+    track('product_viewed', {
+      productId: product.id,
+      productName: product.name,
+      price: product.price,
+      category: product.category
+    });
+  }, [product.id]);
+
+  return (
+    <div>
+      <h1>{product.name}</h1>
+      <button onClick={() => {
+        track('add_to_cart', {
+          productId: product.id,
+          price: product.price
+        });
+        addToCart(product);
+      }}>
+        Add to Cart
+      </button>
+    </div>
+  );
+}
+```
+
+## Next.js Pages Router
+
+For Next.js Pages Router, add to `_app.tsx`:
+
+```tsx
+// pages/_app.tsx
+import { Databuddy } from '@databuddy/sdk/react';
+import type { AppProps } from 'next/app';
+
+export default function App({ Component, pageProps }: AppProps) {
+  return (
+    <>
+      <Component {...pageProps} />
+      <Databuddy
+        trackWebVitals
+        trackErrors
+      />
+    </>
+  );
+}
+```
+
+## Environment Variables
+
+Create a `.env.local` file:
+
+```bash
+NEXT_PUBLIC_DATABUDDY_CLIENT_ID=your_website_id
+```
+
+The component auto-detects this variable if `clientId` prop is not provided.
+
+## Disable in Development
+
+```tsx
+<Databuddy
+  disabled={process.env.NODE_ENV === 'development'}
+  trackWebVitals
+/>
+```
+
+## TypeScript Support
+
+The SDK includes full TypeScript definitions:
+
+```tsx
+import { track, getAnonymousId, flush } from '@databuddy/sdk';
+import type { DatabuddyTracker } from '@databuddy/sdk';
+
+// Type-safe event tracking
+interface PurchaseEvent {
+  orderId: string;
+  total: number;
+  items: number;
+}
+
+function trackPurchase(data: PurchaseEvent) {
+  track('purchase', data);
+  flush();
+}
+```

@@ -1,0 +1,410 @@
+---
+title: User Identification
+description: Understand anonymous IDs, session IDs, and cross-domain tracking
+---
+
+## Overview
+
+Databuddy uses two types of identifiers to track users across sessions and domains:
+
+1. **Anonymous ID** - Persistent identifier stored in `localStorage` that survives page reloads and browser sessions
+2. **Session ID** - Temporary identifier stored in `sessionStorage` that expires after 30 minutes of inactivity
+
+These identifiers are automatically generated and attached to all events, enabling you to analyze user journeys and behavior patterns.
+
+## Anonymous ID
+
+The anonymous ID is a persistent identifier that uniquely identifies a user across multiple sessions on the same device and browser.
+
+### Format
+
+```
+anon_[uuid]
+```
+
+Example: `anon_550e8400-e29b-41d4-a716-446655440000`
+
+### Storage
+
+- **Location:** `localStorage` with key `did`
+- **Expiration:** Never expires (persists until manually cleared)
+- **Scope:** Domain-specific (separate for each domain)
+
+### Retrieving Anonymous ID
+
+Use the `getAnonymousId()` function to access the current anonymous ID:
+
+```typescript
+import { getAnonymousId } from '@databuddy/sdk';
+
+const anonId = getAnonymousId();
+console.log('Anonymous ID:', anonId);
+// Output: anon_550e8400-e29b-41d4-a716-446655440000
+```
+
+#### Function Signature
+
+```typescript
+function getAnonymousId(urlParams?: URLSearchParams): string | null
+```
+
+**Priority order:**
+1. `anonId` URL parameter (if `urlParams` provided)
+2. Tracker instance value
+3. `localStorage.getItem('did')`
+4. `null` if not available
+
+### Example: Send to Backend
+
+```typescript
+import { getAnonymousId } from '@databuddy/sdk';
+
+async function identifyUser(email: string) {
+  const anonId = getAnonymousId();
+  
+  await fetch('/api/identify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      email,
+      anonymousId: anonId
+    })
+  });
+}
+```
+
+## Session ID
+
+The session ID identifies a single browsing session and expires after 30 minutes of inactivity.
+
+### Format
+
+```
+sess_[uuid]
+```
+
+Example: `sess_7c9e6679-7425-40de-944b-e07fc1f90ae7`
+
+### Storage
+
+- **Location:** `sessionStorage` with key `did_session`
+- **Expiration:** 30 minutes of inactivity
+- **Scope:** Tab-specific (each browser tab has its own session)
+
+### Session Lifecycle
+
+1. **Creation:** Generated on first pageview
+2. **Extension:** Timestamp updated on each pageview (resets 30-minute timer)
+3. **Expiration:** Automatically expires after 30 minutes without activity
+4. **Termination:** Cleared when tab/window closes or when `clear()` is called
+
+### Retrieving Session ID
+
+Use the `getSessionId()` function:
+
+```typescript
+import { getSessionId } from '@databuddy/sdk';
+
+const sessionId = getSessionId();
+console.log('Session ID:', sessionId);
+// Output: sess_7c9e6679-7425-40de-944b-e07fc1f90ae7
+```
+
+#### Function Signature
+
+```typescript
+function getSessionId(urlParams?: URLSearchParams): string | null
+```
+
+**Priority order:**
+1. `sessionId` URL parameter (if `urlParams` provided)
+2. Tracker instance value
+3. `sessionStorage.getItem('did_session')`
+4. `null` if not available
+
+### Session Start Time
+
+The session start timestamp is stored in `sessionStorage` as `did_session_start` and represents when the session was created.
+
+## Retrieving Both IDs
+
+Get both identifiers in a single call:
+
+```typescript
+import { getTrackingIds } from '@databuddy/sdk';
+
+const { anonId, sessionId } = getTrackingIds();
+
+console.log('Anonymous ID:', anonId);
+console.log('Session ID:', sessionId);
+
+// Send to your backend
+await fetch('/api/track', {
+  method: 'POST',
+  body: JSON.stringify({
+    userId: currentUser.id,
+    anonymousId: anonId,
+    sessionId: sessionId,
+    event: 'page_viewed'
+  })
+});
+```
+
+## Cross-Domain Tracking
+
+When users navigate between different domains you own (e.g., from `marketing.example.com` to `app.example.com`), you can preserve tracking continuity by passing IDs via URL parameters.
+
+### Generate Tracking Parameters
+
+Use `getTrackingParams()` to create a query string with both IDs:
+
+```typescript
+import { getTrackingParams } from '@databuddy/sdk';
+
+const params = getTrackingParams();
+console.log(params);
+// Output: "anonId=anon_550e8400-e29b-41d4-a716-446655440000&sessionId=sess_7c9e6679-7425-40de-944b-e07fc1f90ae7"
+
+// Use in link
+const url = `https://app.example.com/dashboard?${params}`;
+```
+
+#### Function Signature
+
+```typescript
+function getTrackingParams(urlParams?: URLSearchParams): string
+```
+
+Returns a URL-encoded query string with `anonId` and `sessionId` parameters.
+
+### React Example
+
+```tsx
+import { getTrackingParams } from '@databuddy/sdk';
+
+function CrossDomainLink() {
+  const trackingParams = getTrackingParams();
+  
+  return (
+    <a href={`https://shop.example.com?${trackingParams}`}>
+      Visit Our Shop
+    </a>
+  );
+}
+```
+
+### Next.js Example
+
+```tsx
+import Link from 'next/link';
+import { getTrackingParams } from '@databuddy/sdk';
+
+export function ExternalLink() {
+  const params = getTrackingParams();
+  
+  return (
+    <Link href={`https://app.example.com?${params}`}>
+      Go to App
+    </Link>
+  );
+}
+```
+
+### How It Works
+
+When a user clicks a link with tracking parameters:
+
+1. The destination page loads with `?anonId=...&sessionId=...` in the URL
+2. Databuddy tracker detects the URL parameters
+3. The IDs from the URL are stored in `localStorage` and `sessionStorage`
+4. Tracking continuity is maintained across domains
+
+**Source code reference:** `/home/daytona/workspace/source/packages/tracker/src/core/tracker.ts:150-155`
+
+```typescript
+const urlParams = new URLSearchParams(window.location.search);
+const anonId = urlParams.get("anonId");
+if (anonId) {
+  localStorage.setItem("did", anonId);
+  return anonId;
+}
+```
+
+## Clearing Identities
+
+Reset tracking identities when a user logs out or you need a fresh session:
+
+```typescript
+import { clear } from '@databuddy/sdk';
+
+async function handleLogout() {
+  // Clear user session on your backend
+  await signOut();
+  
+  // Reset Databuddy tracking
+  clear();
+  
+  // Redirect to login
+  router.push('/login');
+}
+```
+
+### What `clear()` Does
+
+1. Removes `did` from `localStorage` (anonymous ID)
+2. Removes `did_session` from `sessionStorage` (session ID)
+3. Removes `did_session_timestamp` from `sessionStorage`
+4. Removes `did_session_start` from `sessionStorage`
+5. Generates new anonymous and session IDs
+6. Resets page count and engagement metrics
+7. Clears global properties
+
+**Source code reference:** `/home/daytona/workspace/source/packages/tracker/src/index.ts:329-346`
+
+### Function Signature
+
+```typescript
+function clear(): void
+```
+
+<Warning>
+Calling `clear()` will create new identifiers, making it impossible to link future events to previous sessions. Only use this when you explicitly want to reset tracking state (e.g., after logout).
+</Warning>
+
+## Checking Tracker Availability
+
+Before accessing tracking IDs, verify the tracker has loaded:
+
+```typescript
+import { isTrackerAvailable, getAnonymousId } from '@databuddy/sdk';
+
+if (isTrackerAvailable()) {
+  const anonId = getAnonymousId();
+  console.log('Tracker is ready:', anonId);
+} else {
+  console.log('Tracker not loaded yet');
+}
+```
+
+### Function Signature
+
+```typescript
+function isTrackerAvailable(): boolean
+```
+
+Returns `true` if `window.databuddy` or `window.db` exists, `false` otherwise.
+
+## Advanced Usage
+
+### Access Tracker Instance
+
+Get the raw tracker instance for advanced operations:
+
+```typescript
+import { getTracker } from '@databuddy/sdk';
+
+const tracker = getTracker();
+
+if (tracker) {
+  console.log('Anonymous ID:', tracker.anonymousId);
+  console.log('Session ID:', tracker.sessionId);
+  console.log('Session start:', tracker.sessionStartTime);
+  console.log('Page count:', tracker.pageCount);
+}
+```
+
+### Custom Identity Logic
+
+```typescript
+import { getAnonymousId, getSessionId } from '@databuddy/sdk';
+
+// Check URL params for cross-domain tracking
+const urlParams = new URLSearchParams(window.location.search);
+const anonId = getAnonymousId(urlParams);
+const sessionId = getSessionId(urlParams);
+
+if (anonId && sessionId) {
+  console.log('Cross-domain tracking active');
+  
+  // Optionally track this event
+  track('cross_domain_navigation', {
+    source: document.referrer,
+    destination: window.location.href
+  });
+}
+```
+
+## Privacy Considerations
+
+<CardGroup cols={2}>
+  <Card title="Anonymous by Default" icon="user-secret">
+    Databuddy uses anonymous identifiers, not personally identifiable information (PII). No emails, names, or addresses are collected by default.
+  </Card>
+
+  <Card title="User Consent" icon="hand">
+    Respect user privacy preferences. Use the `disabled` option or `clear()` function to honor opt-out requests.
+  </Card>
+
+  <Card title="Data Minimization" icon="minimize">
+    Only track what you need. Don't send PII in event properties unless necessary for your use case.
+  </Card>
+
+  <Card title="Opt-Out Support" icon="ban">
+    Provide users with an opt-out mechanism using `window.databuddyOptOut()` or by disabling tracking entirely.
+  </Card>
+</CardGroup>
+
+### Opt-Out Functionality
+
+```typescript
+// Allow users to opt out
+function handleOptOut() {
+  if (typeof window !== 'undefined' && window.databuddyOptOut) {
+    window.databuddyOptOut();
+    alert('You have opted out of analytics tracking');
+  }
+}
+
+// Allow users to opt back in
+function handleOptIn() {
+  if (typeof window !== 'undefined' && window.databuddyOptIn) {
+    window.databuddyOptIn();
+    alert('You have opted in to analytics tracking');
+  }
+}
+```
+
+## Storage Details
+
+### localStorage (Anonymous ID)
+
+```typescript
+// Key: "did"
+// Value: "anon_550e8400-e29b-41d4-a716-446655440000"
+localStorage.getItem('did');
+```
+
+### sessionStorage (Session ID)
+
+```typescript
+// Session ID
+// Key: "did_session"
+// Value: "sess_7c9e6679-7425-40de-944b-e07fc1f90ae7"
+sessionStorage.getItem('did_session');
+
+// Session timestamp (for 30-minute expiration)
+// Key: "did_session_timestamp"
+// Value: "1709318400000" (timestamp in ms)
+sessionStorage.getItem('did_session_timestamp');
+
+// Session start time
+// Key: "did_session_start"
+// Value: "1709318400000" (timestamp in ms)
+sessionStorage.getItem('did_session_start');
+```
+
+## Related Documentation
+
+- [Sessions](/tracking/sessions) - Session lifecycle and management
+- [Custom Events](/tracking/events) - Track user actions
+- [Custom Properties](/tracking/custom-properties) - Event properties and data types

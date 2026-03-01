@@ -1,0 +1,461 @@
+---
+title: 'Event Tracking'
+description: 'Learn how Databuddy captures, batches, and sends analytics events'
+icon: 'chart-line'
+---
+
+Databuddy provides a flexible event tracking system that automatically captures page views, custom events, web vitals, and errors. Events are efficiently batched and sent to your analytics backend.
+
+## Event Types
+
+Databuddy tracks four primary event types:
+
+<CardGroup cols={2}>
+<Card title="Page Views" icon="eye">
+Automatic tracking of page views and screen changes
+</Card>
+
+<Card title="Custom Events" icon="hand-pointer">
+Manual event tracking with custom properties
+</Card>
+
+<Card title="Web Vitals" icon="gauge-high">
+Core Web Vitals (LCP, FID, CLS, INP, TTFB, FPS)
+</Card>
+
+<Card title="Errors" icon="triangle-exclamation">
+JavaScript errors and exceptions
+</Card>
+</CardGroup>
+
+## Page View Events
+
+Page views are automatically tracked when:
+
+- The page loads for the first time
+- The URL changes in single-page applications (SPAs)
+- Hash changes occur (if `trackHashChanges: true`)
+
+Each page view event includes:
+
+```typescript
+// From packages/tracker/src/core/tracker.ts:294-324
+getBaseContext(): EventContext {
+  return {
+    path: window.location.origin + this.getMaskedPath() + 
+          window.location.search + window.location.hash,
+    title: document.title,
+    referrer: document.referrer || "direct",
+    viewport_size: width && height ? `${width}x${height}` : undefined,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    language: navigator.language,
+    ...this.getUtmParams(),
+  };
+}
+```
+
+### Automatic Performance Tracking
+
+When `trackPerformance: true`, page view events include timing metrics:
+
+- **Load time**: Total page load time
+- **DOM ready time**: Time until DOM is interactive
+- **TTFB**: Time to First Byte
+- **Connection time**: DNS + TCP connection time
+- **Render time**: Time to first render
+
+These metrics come from the [Navigation Timing API](https://developer.mozilla.org/en-US/docs/Web/API/Navigation_timing_API).
+
+## Custom Events
+
+Track custom events with properties:
+
+```typescript
+window.db.track('button_clicked', {
+  button_id: 'signup-cta',
+  page: '/pricing',
+  plan: 'pro'
+});
+```
+
+### Event Properties
+
+Properties are stored as JSON strings in the database and can be queried later:
+
+```typescript
+// From packages/tracker/src/core/tracker.ts:491-523
+trackEvent(
+  name: string,
+  properties?: Record<string, unknown>
+): Promise<void> {
+  if (this.shouldSkipTracking()) {
+    return Promise.resolve();
+  }
+
+  const event: TrackEventPayload = {
+    name,
+    timestamp: Date.now(),
+    properties,
+    anonymousId: this.anonymousId,
+    sessionId: this.sessionId,
+    websiteId: this.options.clientId,
+    source: "browser",
+  };
+
+  this.trackQueue.push(event);
+  // Batching logic...
+}
+```
+
+<Info>
+Custom events are sent to the `/track` endpoint and stored in the `custom_events` table in ClickHouse.
+</Info>
+
+## Event Batching
+
+Databuddy batches events to reduce network overhead and improve performance. Instead of sending each event individually, events are collected and sent in groups.
+
+### How Batching Works
+
+<Steps>
+<Step title="Event Collection">
+Events are added to an in-memory queue (`batchQueue`).
+</Step>
+
+<Step title="Timer Starts">
+A timeout is set when the first event is added to the queue.
+</Step>
+
+<Step title="Flush Triggered">
+The batch is sent when either:
+- The queue reaches `batchSize` events (default: 10)
+- The `batchTimeout` expires (default: 5000ms)
+</Step>
+
+<Step title="Transmission">
+All queued events are sent in a single POST request to `/batch`.
+</Step>
+</Steps>
+
+```typescript
+// From packages/tracker/src/core/tracker.ts:351-363
+addToBatch(event: BaseEvent): Promise<void> {
+  this.batchQueue.push(event);
+  if (this.batchTimer === null) {
+    this.batchTimer = setTimeout(
+      () => this.flushBatch(),
+      this.options.batchTimeout
+    );
+  }
+  if (this.batchQueue.length >= (this.options.batchSize || 10)) {
+    this.flushBatch();
+  }
+  return Promise.resolve();
+}
+```
+
+### Batch Configuration
+
+Customize batching behavior:
+
+```typescript
+<Databuddy
+  clientId="your-client-id"
+  enableBatching={true}      // Enable/disable batching
+  batchSize={20}             // Events per batch (1-50)
+  batchTimeout={10000}       // Max wait time in ms (100-30000)
+/>
+```
+
+<Tip>
+For high-traffic sites, increase `batchSize` to 30-50 to reduce network requests. For real-time tracking, decrease `batchTimeout` to 1000-2000ms.
+</Tip>
+
+## Separate Queues
+
+Databuddy maintains **separate queues** for different event types to optimize delivery:
+
+<CodeGroup>
+```typescript Page View Events
+// Main batch queue for page views and interactions
+batchQueue: BaseEvent[] = [];
+batchTimer: Timer | null = null;
+```
+
+```typescript Web Vitals
+// Dedicated queue for Web Vitals metrics
+vitalsQueue: WebVitalEvent[] = [];
+vitalsTimer: Timer | null = null;
+```
+
+```typescript Errors
+// Separate queue for error tracking
+errorsQueue: ErrorSpan[] = [];
+errorsTimer: Timer | null = null;
+```
+
+```typescript Custom Events
+// Track API events queue
+trackQueue: TrackEventPayload[] = [];
+trackTimer: Timer | null = null;
+```
+</CodeGroup>
+
+Each queue has its own:
+- Batch size limit
+- Timeout configuration
+- Flush logic
+- API endpoint
+
+## Flush Strategies
+
+### Automatic Flush
+
+Batches are automatically flushed when:
+
+1. **Size limit reached**: Queue contains `batchSize` events
+2. **Timeout expires**: `batchTimeout` milliseconds have passed
+3. **Page unload**: User navigates away or closes the tab
+
+### Manual Flush
+
+Force an immediate flush:
+
+```javascript
+window.db.flush();
+```
+
+This sends all pending events in all queues immediately, useful before:
+- Single-page navigation
+- Form submissions
+- Critical actions
+
+## Reliability Features
+
+### Retry Logic
+
+Enable automatic retries for failed requests:
+
+```typescript
+<Databuddy
+  clientId="your-client-id"
+  enableRetries={true}
+  maxRetries={3}
+  initialRetryDelay={500}  // ms
+/>
+```
+
+Retry behavior (from `packages/tracker/src/core/client.ts:84-94`):
+
+```typescript
+if (response.status >= 500 && response.status < 600 || response.status === 429) {
+  if (retryCount < this.maxRetries) {
+    const jitter = Math.random() * 0.3 + 0.85;
+    const delay = this.initialRetryDelay * 2 ** retryCount * jitter;
+    await new Promise((resolve) => setTimeout(resolve, delay));
+    return this.post(url, data, options, retryCount + 1);
+  }
+}
+```
+
+<Info>
+Retries use exponential backoff with jitter to avoid overwhelming the server.
+</Info>
+
+### Keepalive
+
+Databuddy uses the `keepalive` flag on fetch requests to ensure events are sent even when the page is unloading:
+
+```typescript
+const fetchOptions: RequestInit = {
+  method: "POST",
+  headers: await this.resolveHeaders(),
+  body: JSON.stringify(data ?? {}),
+  keepalive: true,  // Ensures delivery during page unload
+  credentials: "omit",
+  ...options,
+};
+```
+
+### SendBeacon Fallback
+
+For critical events (like Web Vitals), Databuddy uses `navigator.sendBeacon()` as a fallback:
+
+```typescript
+// From packages/tracker/src/core/tracker.ts:554-569
+sendBeacon(data: unknown, endpoint = "/vitals"): boolean {
+  if (this.isServer() || !navigator.sendBeacon) {
+    return false;
+  }
+
+  try {
+    const blob = new Blob([JSON.stringify(data)], {
+      type: "application/json",
+    });
+    const baseUrl = this.options.apiUrl || "https://basket.databuddy.cc";
+    return navigator.sendBeacon(
+      `${baseUrl}${endpoint}?client_id=${encodeURIComponent(this.options.clientId)}`,
+      blob
+    );
+  } catch {
+    return false;
+  }
+}
+```
+
+## Event Filtering
+
+### Client-Side Filtering
+
+Filter events before they're sent:
+
+```typescript
+<Databuddy
+  clientId="your-client-id"
+  filter={(event) => {
+    // Don't track admin pages
+    if (event.path?.includes('/admin')) {
+      return false;
+    }
+    // Track everything else
+    return true;
+  }}
+/>
+```
+
+### Sampling
+
+Randomly sample a percentage of events:
+
+```typescript
+<Databuddy
+  clientId="your-client-id"
+  samplingRate={0.1}  // Track 10% of events
+/>
+```
+
+Sampling is applied in `packages/tracker/src/core/tracker.ts:334-337`:
+
+```typescript
+const samplingRate = this.options.samplingRate ?? 1.0;
+if (samplingRate < 1.0 && Math.random() > samplingRate) {
+  return Promise.resolve();
+}
+```
+
+## Event Schema
+
+Events in ClickHouse follow this structure:
+
+```sql
+-- From packages/db/src/clickhouse/schema.ts:9-78
+CREATE TABLE analytics.events (
+  id UUID,
+  client_id String,
+  event_name String,
+  anonymous_id String,
+  time DateTime64(3, 'UTC'),
+  session_id String,
+  
+  event_type LowCardinality(String) DEFAULT 'track',
+  event_id Nullable(String),
+  session_start_time Nullable(DateTime64(3, 'UTC')),
+  timestamp DateTime64(3, 'UTC') DEFAULT time,
+  
+  referrer Nullable(String),
+  url String,
+  path String,
+  title Nullable(String),
+  
+  ip String,
+  user_agent String,
+  browser_name Nullable(String),
+  os_name Nullable(String),
+  device_type Nullable(String),
+  country Nullable(String),
+  region Nullable(String),
+  city Nullable(String),
+  
+  properties String,
+  
+  created_at DateTime64(3, 'UTC')
+) ENGINE = MergeTree()
+PARTITION BY toYYYYMM(time)
+ORDER BY (client_id, time, id);
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+<Card title="Use Descriptive Names" icon="tag">
+```typescript
+// Good
+db.track('checkout_completed', {amount: 99.99});
+
+// Bad  
+db.track('cc', {amt: 99.99});
+```
+</Card>
+
+<Card title="Keep Properties Flat" icon="layer-group">
+```typescript
+// Good
+db.track('signup', {
+  plan: 'pro',
+  source: 'landing'
+});
+
+// Avoid deep nesting
+db.track('signup', {
+  user: { plan: { name: 'pro' } }
+});
+```
+</Card>
+
+<Card title="Batch High-Volume Events" icon="boxes-stacked">
+```typescript
+<Databuddy
+  enableBatching={true}
+  batchSize={30}
+  batchTimeout={5000}
+/>
+```
+</Card>
+
+<Card title="Use Sampling for Scale" icon="percent">
+```typescript
+<Databuddy
+  samplingRate={0.1}  // 10% for high-traffic sites
+/>
+```
+</Card>
+</CardGroup>
+
+## Performance Impact
+
+Databuddy is designed to have minimal performance impact:
+
+- **Bundle size**: ~12KB gzipped for the tracker
+- **Network overhead**: Batching reduces requests to 1-2 per 5 seconds
+- **CPU usage**: Negligible, events are collected asynchronously
+- **Memory**: Queues are capped and flushed regularly
+
+<Info>
+The tracker uses `requestIdleCallback` where available to schedule non-critical work during idle periods.
+</Info>
+
+## Learn More
+
+<CardGroup cols={2}>
+<Card title="Privacy First" icon="shield" href="/concepts/privacy-first">
+Understand Databuddy's privacy features
+</Card>
+
+<Card title="Sessions & Users" icon="users" href="/concepts/sessions-users">
+Learn about session and user identification
+</Card>
+
+<Card title="Data Model" icon="database" href="/concepts/data-model">
+Explore the database schema structure
+</Card>
+</CardGroup>

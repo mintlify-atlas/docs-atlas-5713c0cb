@@ -1,0 +1,417 @@
+---
+title: Link Shortening
+description: Create trackable short links with custom slugs, expiration dates, and device targeting
+---
+
+Databuddy's link shortening service lets you create short, branded links with built-in analytics. Track clicks, target specific devices, and customize Open Graph metadata for social sharing.
+
+## What is Link Shortening?
+
+Link shortening converts long URLs into shorter, more shareable links:
+
+- **Short URLs**: `dby.cc/summer-sale` instead of `example.com/products/seasonal/summer-2024/sale?utm_source=email`
+- **Click tracking**: Monitor link performance with analytics
+- **Device targeting**: Send mobile users to app stores, desktop users to web
+- **Social previews**: Custom Open Graph images and descriptions
+- **Expiration**: Set time-limited links for campaigns
+
+## Creating Short Links
+
+### Via Dashboard
+
+1. Navigate to **Links** in the sidebar
+2. Click **Create Link**
+3. Enter the target URL
+4. Configure link options (slug, expiration, etc.)
+5. Click **Create**
+
+### Link Fields
+
+| Field | Description | Required |
+|-------|-------------|----------|
+| Name | Internal identifier for the link | Yes |
+| Target URL | Destination URL | Yes |
+| Slug | Custom short code (auto-generated if empty) | No |
+| Expires At | Link expiration date/time | No |
+| Expired Redirect URL | Where to send users after expiration | No |
+
+### Example: Campaign Link
+
+```json
+{
+  "name": "Black Friday Sale",
+  "targetUrl": "https://example.com/products/sale",
+  "slug": "bf24",
+  "expiresAt": "2024-11-30T23:59:59Z",
+  "expiredRedirectUrl": "https://example.com/"
+}
+```
+
+This creates `dby.cc/bf24` that expires on November 30, 2024.
+
+## Custom Slugs
+
+### Auto-Generated Slugs
+
+Leave slug empty for automatic generation:
+
+- Format: Random alphanumeric string (6-8 characters)
+- Example: `dby.cc/a3kF9x`
+- Collision-resistant using hash-based generation
+
+### Custom Slugs
+
+Define memorable short codes:
+
+- Use lowercase letters, numbers, hyphens
+- Length: 3-50 characters
+- Must be unique across your organization
+- Examples: `summer-sale`, `signup`, `docs`
+
+<Tip>
+Use descriptive slugs for branded campaigns and auto-generated slugs for temporary or high-volume links.
+</Tip>
+
+## Device Targeting
+
+Send users to different URLs based on their device:
+
+### iOS Targeting
+
+Redirect iOS users to App Store:
+
+```json
+{
+  "targetUrl": "https://example.com",
+  "iosUrl": "https://apps.apple.com/app/example/id123456789"
+}
+```
+
+iOS users → App Store
+Other users → Web URL
+
+### Android Targeting
+
+Redirect Android users to Play Store:
+
+```json
+{
+  "targetUrl": "https://example.com",
+  "androidUrl": "https://play.google.com/store/apps/details?id=com.example.app"
+}
+```
+
+Android users → Play Store
+Other users → Web URL
+
+### Combined Targeting
+
+```json
+{
+  "targetUrl": "https://example.com",
+  "iosUrl": "https://apps.apple.com/app/example/id123456789",
+  "androidUrl": "https://play.google.com/store/apps/details?id=com.example.app"
+}
+```
+
+- iOS users → App Store
+- Android users → Play Store
+- Desktop/other → Web URL
+
+## Open Graph Metadata
+
+Customize how links appear when shared on social media:
+
+### OG Fields
+
+| Field | Description | Recommended Size |
+|-------|-------------|------------------|
+| OG Title | Preview title | 60-90 characters |
+| OG Description | Preview description | 150-200 characters |
+| OG Image URL | Preview image | 1200×630 pixels |
+| OG Video URL | Preview video | MP4 or YouTube URL |
+
+### Example: Social Preview
+
+```json
+{
+  "name": "Product Launch",
+  "targetUrl": "https://example.com/launch",
+  "ogTitle": "Introducing Our New Product",
+  "ogDescription": "Revolutionary features that will change how you work.",
+  "ogImageUrl": "https://example.com/images/launch-og.jpg",
+  "ogVideoUrl": "https://youtube.com/watch?v=xyz"
+}
+```
+
+When shared on Twitter, Facebook, LinkedIn, etc., this link displays your custom title, description, and image.
+
+<Info>
+Social bots (Twitter, Facebook, etc.) are automatically shown an Open Graph preview page instead of being redirected.
+</Info>
+
+## Link Expiration
+
+### Setting Expiration
+
+Links can expire automatically:
+
+```json
+{
+  "expiresAt": "2024-12-31T23:59:59Z"
+}
+```
+
+After this date/time, the link redirects to `expiredRedirectUrl` or a default expiration page.
+
+### Expired Redirect URL
+
+Customize where expired links redirect:
+
+```json
+{
+  "expiresAt": "2024-12-31T23:59:59Z",
+  "expiredRedirectUrl": "https://example.com/campaign-ended"
+}
+```
+
+If not set, expired links redirect to `https://app.databuddy.cc/dby/expired`.
+
+### Use Cases
+
+- **Limited-time offers**: Automatically disable after promotion ends
+- **Event links**: Expire after event date
+- **Beta access**: Time-limited signup links
+- **Seasonal campaigns**: Auto-expire outdated campaigns
+
+## Click Tracking
+
+### Automatic Analytics
+
+Every link click is tracked with:
+
+- Timestamp
+- Referrer (where the click came from)
+- User agent (browser and device)
+- Geographic location (country, region, city)
+- Browser name
+- Device type (desktop, mobile, tablet)
+
+### Privacy-First Tracking
+
+- IP addresses are hashed (SHA-256) before storage
+- No personal identifiable information collected
+- Anonymous visitor identification
+- GDPR compliant
+
+### Deduplication
+
+Clicks from the same user are rate-limited:
+
+- Uses IP hash for deduplication
+- Prevents click spam
+- Tracks unique clicks accurately
+
+<Note>
+Bot traffic is automatically filtered using user agent detection.
+</Note>
+
+## Link Analytics
+
+### Viewing Link Performance
+
+1. Navigate to **Links**
+2. Click on a link to view details
+3. See click metrics, referrers, devices, and locations
+
+### Available Metrics
+
+- **Total Clicks**: All-time click count
+- **Unique Visitors**: Distinct users who clicked
+- **Referrer Breakdown**: Where clicks originated
+- **Geographic Distribution**: Clicks by country/region
+- **Device Types**: Desktop vs. mobile vs. tablet
+- **Browser Distribution**: Which browsers users use
+- **Click Trends**: Clicks over time (hourly, daily, weekly)
+
+### Exporting Data
+
+Export link analytics:
+
+1. Open link details
+2. Click **Export**
+3. Choose format (CSV or JSON)
+4. Download analytics data
+
+## Managing Links
+
+### Editing Links
+
+1. Click a link from the links list
+2. Click **Edit**
+3. Modify any field (name, target URL, slug, expiration, etc.)
+4. Click **Save**
+
+<Warning>
+Changing the slug creates a new short URL. The old slug will stop working.
+</Warning>
+
+### Deleting Links
+
+Permanently remove a link:
+
+1. Open the link's detail page
+2. Click **Delete**
+3. Confirm deletion
+
+Deleted links:
+
+- Stop redirecting (404 Not Found)
+- Retain analytics data (unless purged)
+- Cannot be recovered
+
+### Bulk Operations
+
+Manage multiple links at once:
+
+1. Select links using checkboxes
+2. Choose bulk action (delete, export, etc.)
+3. Confirm operation
+
+## Advanced Features
+
+### Caching
+
+Link data is cached for performance:
+
+- **Redis cache**: Link metadata cached in-memory
+- **TTL**: Cache invalidates on updates
+- **ETag support**: Browser-level caching for repeated clicks
+
+This ensures fast redirects even under high traffic.
+
+### Rate Limiting
+
+API rate limits protect against abuse:
+
+- 100 requests per minute per IP
+- Returns `429 Too Many Requests` when exceeded
+- Rate limit headers included in responses
+
+### Bot Detection
+
+Automatic bot filtering:
+
+- Social media crawlers (Twitter, Facebook) → OG preview
+- Search engine bots → Direct redirect (no tracking)
+- Malicious bots → Filtered from analytics
+
+Bot detection uses the `ua-parser-js` library.
+
+## Link Infrastructure
+
+Databuddy's link service is built for scale:
+
+- **Runtime**: Bun + Elysia (ultra-fast HTTP server)
+- **Database**: PostgreSQL (via Drizzle ORM)
+- **Cache**: Redis (link metadata)
+- **Analytics**: Kafka + ClickHouse (click events)
+- **Observability**: OpenTelemetry tracing to Axiom
+- **Geographic data**: MaxMind GeoIP2
+
+### High Availability
+
+- Graceful shutdown (SIGTERM/SIGINT)
+- Connection pooling
+- Automatic retries
+- Health check endpoint (`/health`)
+
+## Best Practices
+
+### Naming Conventions
+
+Use descriptive internal names:
+
+- Good: "Summer 2024 Email Campaign"
+- Bad: "Link 1"
+
+### Slug Strategy
+
+- **Campaigns**: Use branded slugs (`summer-sale`, `webinar`)
+- **Temporary**: Use auto-generated slugs
+- **Evergreen**: Use descriptive slugs (`docs`, `support`, `pricing`)
+
+### OG Optimization
+
+1. **Title**: Front-load key words, 60-90 characters
+2. **Description**: Compelling preview, 150-200 characters
+3. **Image**: High-quality, 1200×630 pixels, < 1MB
+4. **Test**: Use Twitter Card Validator, Facebook Debugger
+
+### Expiration Strategy
+
+- Set expiration for time-sensitive campaigns
+- Always provide `expiredRedirectUrl` for better UX
+- Review expired links monthly and delete unused ones
+
+### Monitor Performance
+
+- Track click-through rates
+- Compare referrer performance
+- Analyze device targeting effectiveness
+- A/B test OG metadata
+
+## Security
+
+### URL Validation
+
+Target URLs must:
+
+- Use `http://` or `https://` protocol
+- Be valid, reachable URLs
+- Not redirect to localhost (in production)
+
+### Slug Constraints
+
+- 3-50 characters
+- Alphanumeric + hyphens only
+- No reserved words (`admin`, `api`, `health`, etc.)
+- Case-insensitive uniqueness
+
+### Rate Limiting
+
+Per-IP rate limits prevent:
+
+- Click fraud
+- DDoS attacks
+- Analytics pollution
+
+## Integration with AI
+
+Use the AI assistant to manage links:
+
+**Example queries:**
+
+- "Show me all my short links"
+- "Create a link for the summer sale"
+- "What's the performance of the bf24 link?"
+- "Delete expired links"
+
+The AI can create, search, update, and analyze links through natural language.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Analytics" icon="chart-line" href="/features/analytics">
+    Analyze link click data
+  </Card>
+  <Card title="Goals" icon="bullseye" href="/features/goals">
+    Track link conversion goals
+  </Card>
+  <Card title="AI Insights" icon="sparkles" href="/features/ai-insights">
+    Ask the AI about link performance
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/links">
+    Programmatic link management
+  </Card>
+</CardGroup>

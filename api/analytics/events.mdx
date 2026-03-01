@@ -1,0 +1,411 @@
+---
+title: 'Event Analytics'
+description: 'Query custom event data, event properties, and event trends'
+---
+
+## Overview
+
+Custom events allow you to track user interactions beyond pageviews. Query event data, analyze event properties, and understand user behavior patterns.
+
+## Query Types
+
+### Custom Events
+
+Get an overview of all custom events tracked on your website.
+
+**Query Type**: `custom_events`
+
+```bash
+curl -X POST 'https://api.databuddy.com/v1/query?website_id=web_abc123' \
+  -H 'Authorization: Bearer db_key_...' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "parameters": ["custom_events"],
+    "startDate": "2024-01-01",
+    "endDate": "2024-01-31",
+    "limit": 100
+  }'
+```
+
+**Response Fields**:
+
+<ResponseField name="name" type="string">
+  The event name (e.g., `button_click`, `form_submit`).
+</ResponseField>
+
+<ResponseField name="total_events" type="number">
+  Total number of times this event was triggered.
+</ResponseField>
+
+<ResponseField name="unique_users" type="number">
+  Number of unique users who triggered this event.
+</ResponseField>
+
+<ResponseField name="unique_sessions" type="number">
+  Number of unique sessions containing this event.
+</ResponseField>
+
+<ResponseField name="first_occurrence" type="string">
+  Timestamp of the first occurrence of this event.
+</ResponseField>
+
+<ResponseField name="last_occurrence" type="string">
+  Timestamp of the most recent occurrence.
+</ResponseField>
+
+<ResponseField name="events_with_properties" type="number">
+  Number of events that include custom properties.
+</ResponseField>
+
+<ResponseField name="percentage" type="number">
+  Percentage of unique users relative to total.
+</ResponseField>
+
+### Custom Event Properties
+
+Analyze properties attached to custom events to understand event context.
+
+**Query Type**: `custom_event_properties`
+
+```bash
+curl -X POST 'https://api.databuddy.com/v1/query?website_id=web_abc123' \
+  -H 'Authorization: Bearer db_key_...' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "parameters": ["custom_event_properties"],
+    "startDate": "2024-01-01",
+    "endDate": "2024-01-31",
+    "filters": [
+      {
+        "field": "event_name",
+        "op": "eq",
+        "value": "button_click"
+      }
+    ],
+    "limit": 100
+  }'
+```
+
+**Response Fields**:
+
+<ResponseField name="name" type="string">
+  The event name.
+</ResponseField>
+
+<ResponseField name="property_key" type="string">
+  The property key name.
+</ResponseField>
+
+<ResponseField name="property_value" type="string">
+  The property value.
+</ResponseField>
+
+<ResponseField name="count" type="number">
+  Number of events with this property value.
+</ResponseField>
+
+### Events by Path
+
+See which pages generate the most custom events.
+
+**Query Type**: `custom_events_by_path`
+
+```bash
+curl -X POST 'https://api.databuddy.com/v1/query?website_id=web_abc123' \
+  -H 'Authorization: Bearer db_key_...' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "parameters": ["custom_events_by_path"],
+    "preset": "last_7d",
+    "limit": 50
+  }'
+```
+
+**Response Fields**:
+
+<ResponseField name="name" type="string">
+  The page path where events occurred.
+</ResponseField>
+
+<ResponseField name="total_events" type="number">
+  Total events on this page.
+</ResponseField>
+
+<ResponseField name="unique_event_types" type="number">
+  Number of different event types triggered on this page.
+</ResponseField>
+
+<ResponseField name="unique_users" type="number">
+  Unique users who triggered events on this page.
+</ResponseField>
+
+### Events Trends
+
+Track event volume over time to identify patterns.
+
+**Query Type**: `custom_events_trends`
+
+```bash
+curl -X POST 'https://api.databuddy.com/v1/query?website_id=web_abc123' \
+  -H 'Authorization: Bearer db_key_...' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "parameters": ["custom_events_trends"],
+    "startDate": "2024-01-01",
+    "endDate": "2024-01-31"
+  }'
+```
+
+**Response Fields**:
+
+<ResponseField name="date" type="string">
+  Date of the data point (YYYY-MM-DD).
+</ResponseField>
+
+<ResponseField name="total_events" type="number">
+  Total events on this date.
+</ResponseField>
+
+<ResponseField name="unique_event_types" type="number">
+  Number of different event types.
+</ResponseField>
+
+<ResponseField name="unique_users" type="number">
+  Unique users who triggered events.
+</ResponseField>
+
+<ResponseField name="unique_sessions" type="number">
+  Unique sessions with events.
+</ResponseField>
+
+<ResponseField name="unique_pages" type="number">
+  Number of different pages with events.
+</ResponseField>
+
+### Events Summary
+
+Get aggregate statistics for all events in a date range.
+
+**Query Type**: `custom_events_summary`
+
+```bash
+curl -X POST 'https://api.databuddy.com/v1/query?website_id=web_abc123' \
+  -H 'Authorization: Bearer db_key_...' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "parameters": ["custom_events_summary"],
+    "preset": "last_30d"
+  }'
+```
+
+**Response Fields**:
+
+<ResponseField name="total_events" type="number">
+  Total event count.
+</ResponseField>
+
+<ResponseField name="unique_event_types" type="number">
+  Number of different event types.
+</ResponseField>
+
+<ResponseField name="unique_users" type="number">
+  Users who triggered events.
+</ResponseField>
+
+<ResponseField name="unique_sessions" type="number">
+  Sessions containing events.
+</ResponseField>
+
+<ResponseField name="unique_pages" type="number">
+  Pages with events.
+</ResponseField>
+
+### Recent Events
+
+View the most recent custom events with full details.
+
+**Query Type**: `custom_events_recent`
+
+```bash
+curl -X POST 'https://api.databuddy.com/v1/query?website_id=web_abc123' \
+  -H 'Authorization: Bearer db_key_...' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "parameters": ["custom_events_recent"],
+    "preset": "today",
+    "limit": 50
+  }'
+```
+
+**Response Fields**:
+
+<ResponseField name="event_name" type="string">
+  Name of the event.
+</ResponseField>
+
+<ResponseField name="namespace" type="string">
+  Event namespace for grouping.
+</ResponseField>
+
+<ResponseField name="path" type="string">
+  Page path where event occurred.
+</ResponseField>
+
+<ResponseField name="source" type="string">
+  Event source (e.g., `web`, `mobile`).
+</ResponseField>
+
+<ResponseField name="properties" type="string">
+  JSON string of event properties.
+</ResponseField>
+
+<ResponseField name="anonymous_id" type="string">
+  Anonymous user identifier.
+</ResponseField>
+
+<ResponseField name="session_id" type="string">
+  Session identifier.
+</ResponseField>
+
+<ResponseField name="timestamp" type="string">
+  Event timestamp.
+</ResponseField>
+
+### Events Discovery
+
+Comprehensive query that returns events with their properties and top values in a single request.
+
+**Query Type**: `custom_events_discovery`
+
+```bash
+curl -X POST 'https://api.databuddy.com/v1/query?website_id=web_abc123' \
+  -H 'Authorization: Bearer db_key_...' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "parameters": ["custom_events_discovery"],
+    "preset": "last_7d",
+    "limit": 200
+  }'
+```
+
+**Response Fields**:
+
+<ResponseField name="event_name" type="string">
+  Name of the event.
+</ResponseField>
+
+<ResponseField name="total_events" type="number">
+  Total event count.
+</ResponseField>
+
+<ResponseField name="unique_users" type="number">
+  Unique users.
+</ResponseField>
+
+<ResponseField name="unique_sessions" type="number">
+  Unique sessions.
+</ResponseField>
+
+<ResponseField name="property_key" type="string">
+  Property key name (null if no properties).
+</ResponseField>
+
+<ResponseField name="unique_values" type="number">
+  Number of unique values for this property.
+</ResponseField>
+
+<ResponseField name="top_values" type="array">
+  Array of tuples containing top 5 property values and their counts.
+</ResponseField>
+
+## Filters
+
+Event queries support these filters:
+
+<ParamField body="namespace" type="string">
+  Filter by event namespace.
+</ParamField>
+
+<ParamField body="website_id" type="string">
+  Filter by specific website (for organization-level queries).
+</ParamField>
+
+<ParamField body="anonymous_id" type="string">
+  Filter by user ID.
+</ParamField>
+
+<ParamField body="session_id" type="string">
+  Filter by session ID.
+</ParamField>
+
+<ParamField body="event_name" type="string">
+  Filter by event name.
+</ParamField>
+
+<ParamField body="source" type="string">
+  Filter by event source.
+</ParamField>
+
+<ParamField body="path" type="string">
+  Filter by page path.
+</ParamField>
+
+<ParamField body="property_key" type="string">
+  Filter by property key name (for property queries).
+</ParamField>
+
+## Advanced Property Analysis
+
+Analyze event property cardinality and classification:
+
+**Property Cardinality** (`custom_events_property_cardinality`):
+```bash
+curl -X POST 'https://api.databuddy.com/v1/query?website_id=web_abc123' \
+  -H 'Authorization: Bearer db_key_...' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "parameters": ["custom_events_property_cardinality"],
+    "preset": "last_30d",
+    "filters": [
+      {"field": "event_name", "op": "eq", "value": "button_click"}
+    ]
+  }'
+```
+
+**Property Top Values** (`custom_events_property_top_values`):
+```bash
+curl -X POST 'https://api.databuddy.com/v1/query?website_id=web_abc123' \
+  -H 'Authorization: Bearer db_key_...' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "parameters": ["custom_events_property_top_values"],
+    "preset": "last_7d",
+    "filters": [
+      {"field": "event_name", "op": "eq", "value": "button_click"},
+      {"field": "property_key", "op": "eq", "value": "button_id"}
+    ],
+    "limit": 10
+  }'
+```
+
+**Property Distribution** (`custom_events_property_distribution`):
+```bash
+curl -X POST 'https://api.databuddy.com/v1/query?website_id=web_abc123' \
+  -H 'Authorization: Bearer db_key_...' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "parameters": ["custom_events_property_distribution"],
+    "preset": "last_30d",
+    "filters": [
+      {"field": "property_key", "op": "eq", "value": "plan_type"}
+    ]
+  }'
+```
+
+## Notes
+
+- Custom events are stored separately from pageview events
+- Events can include arbitrary JSON properties for rich context
+- Property queries automatically extract and analyze JSON property keys and values
+- Event properties support filtering by both the property key and value
+- The discovery query is optimized for exploring your event schema

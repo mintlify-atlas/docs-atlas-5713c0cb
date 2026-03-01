@@ -1,0 +1,376 @@
+---
+title: Custom Dashboards and Reports
+description: Build custom analytics dashboards and reports tailored to your business needs
+---
+
+## Overview
+
+Databuddy provides powerful tools for creating custom dashboards and reports beyond the default analytics views. You can track custom events, build custom queries, and visualize data exactly how you need it.
+
+## Custom event tracking
+
+The foundation of custom dashboards is tracking the right events. Use the `track()` function to send custom events with any properties you need.
+
+### Basic custom events
+
+```tsx
+import { track } from '@databuddy/sdk';
+
+// Simple event
+track('feature_activated');
+
+// Event with properties
+track('feature_activated', {
+  feature_name: 'export',
+  user_plan: 'pro',
+  activation_time_ms: 1250
+});
+```
+
+### E-commerce tracking
+
+```tsx
+// Product viewed
+track('product_viewed', {
+  product_id: 'sku-123',
+  product_name: 'Premium Widget',
+  category: 'widgets',
+  price: 29.99,
+  currency: 'USD'
+});
+
+// Add to cart
+track('add_to_cart', {
+  product_id: 'sku-123',
+  quantity: 2,
+  total_value: 59.98
+});
+
+// Purchase completed
+track('purchase', {
+  transaction_id: payment.id,
+  amount: payment.amount,
+  currency: payment.currency,
+  product_count: cart.items.length,
+  payment_method: 'stripe'
+});
+```
+
+### User engagement tracking
+
+```tsx
+// Feature usage
+track('report_generated', {
+  report_type: 'monthly_summary',
+  data_range_days: 30,
+  export_format: 'pdf'
+});
+
+// Content interaction
+track('video_played', {
+  video_id: 'intro-tutorial',
+  video_duration_sec: 120,
+  autoplay: false
+});
+
+// Search performed
+track('search_executed', {
+  query: 'analytics dashboard',
+  results_count: 42,
+  search_type: 'full_text'
+});
+```
+
+### SaaS metrics tracking
+
+```tsx
+// Trial started
+track('trial_started', {
+  plan: 'pro',
+  trial_duration_days: 14,
+  source: 'pricing_page'
+});
+
+// Feature limit reached
+track('limit_reached', {
+  feature: 'api_calls',
+  limit: 10000,
+  current_usage: 10000,
+  plan: 'starter'
+});
+
+// Onboarding completed
+track('onboarding_completed', {
+  steps_completed: 5,
+  time_taken_minutes: 12,
+  skipped_steps: []
+});
+```
+
+## Global properties
+
+Set properties that attach to every event automatically:
+
+```tsx
+import { getTracker } from '@databuddy/sdk';
+
+const tracker = getTracker();
+
+if (tracker) {
+  tracker.setGlobalProperties({
+    user_plan: 'enterprise',
+    organization_id: 'org_12345',
+    app_version: '2.4.1',
+    environment: 'production'
+  });
+}
+```
+
+These properties will be included in all subsequent events, making it easy to segment data by plan, organization, or environment.
+
+## Viewing custom events
+
+Access your custom events in the Databuddy dashboard:
+
+<Steps>
+  <Step title="Navigate to Custom Events">
+    Go to your website dashboard → Events tab
+  </Step>
+
+  <Step title="Select your event">
+    Click on any event name to see:
+    - Total event count
+    - Unique users who triggered it
+    - Trend over time
+    - Property breakdown
+  </Step>
+
+  <Step title="Filter and segment">
+    Use filters to segment by:
+    - Date range
+    - Event properties
+    - User properties
+    - Device type
+    - Geographic location
+  </Step>
+</Steps>
+
+## Building custom queries
+
+For advanced analysis, you can query your data directly. Databuddy stores events in ClickHouse with the following schema:
+
+### Event data structure
+
+```sql
+SELECT
+  name,                 -- Event name
+  properties,           -- JSON object with event properties
+  anonymous_id,         -- User identifier
+  session_id,          -- Session identifier
+  created,             -- Timestamp
+  path,                -- Page URL
+  referrer,            -- Referrer URL
+  device_type,         -- desktop, mobile, tablet
+  browser,             -- Browser name
+  os,                  -- Operating system
+  country,             -- Country code
+  city                 -- City name
+FROM analytics.events
+WHERE website_id = 'your-website-id'
+  AND created >= now() - INTERVAL 7 DAY
+LIMIT 100
+```
+
+### Example queries
+
+**Top events by volume:**
+
+```sql
+SELECT
+  name,
+  count() as event_count,
+  count(DISTINCT anonymous_id) as unique_users
+FROM analytics.events
+WHERE website_id = 'your-website-id'
+  AND created >= now() - INTERVAL 30 DAY
+GROUP BY name
+ORDER BY event_count DESC
+LIMIT 20
+```
+
+**Conversion funnel:**
+
+```sql
+SELECT
+  countIf(name = 'product_viewed') as viewed,
+  countIf(name = 'add_to_cart') as added_to_cart,
+  countIf(name = 'checkout_started') as checkout,
+  countIf(name = 'purchase') as purchased,
+  round(purchased / viewed * 100, 2) as conversion_rate
+FROM analytics.events
+WHERE website_id = 'your-website-id'
+  AND created >= now() - INTERVAL 7 DAY
+```
+
+**Property breakdown:**
+
+```sql
+SELECT
+  JSONExtractString(properties, 'feature_name') as feature,
+  count() as usage_count,
+  count(DISTINCT anonymous_id) as unique_users
+FROM analytics.events
+WHERE website_id = 'your-website-id'
+  AND name = 'feature_activated'
+  AND created >= now() - INTERVAL 30 DAY
+GROUP BY feature
+ORDER BY usage_count DESC
+```
+
+## Dashboard best practices
+
+<AccordionGroup>
+  <Accordion title="Track user intent, not just actions">
+    Instead of tracking every button click, focus on meaningful user actions:
+
+    **Good:**
+    ```tsx
+    track('filter_applied', { filter_type: 'date_range', value: '30_days' });
+    track('export_started', { format: 'csv', row_count: 1500 });
+    ```
+
+    **Less useful:**
+    ```tsx
+    track('button_clicked', { button_id: 'btn_123' });
+    ```
+  </Accordion>
+
+  <Accordion title="Use consistent naming conventions">
+    Establish a pattern for event names and properties:
+
+    - Use `snake_case` for consistency
+    - Start with the object, then the action: `report_generated`, `user_invited`
+    - Use past tense for completed actions
+    - Group related events with prefixes: `checkout_started`, `checkout_completed`
+
+    ```tsx
+    // Good naming pattern
+    track('subscription_created', { plan: 'pro', billing: 'annual' });
+    track('subscription_cancelled', { reason: 'too_expensive', at_period_end: true });
+    track('subscription_renewed', { plan: 'pro', auto_renew: true });
+    ```
+  </Accordion>
+
+  <Accordion title="Include context in properties">
+    Add properties that help you understand the 'why' and 'where':
+
+    ```tsx
+    track('upgrade_clicked', {
+      current_plan: 'starter',
+      target_plan: 'pro',
+      source: 'limit_modal',  // Where the upgrade was initiated
+      trigger: 'api_limit',   // What triggered the upgrade prompt
+      page: '/dashboard'
+    });
+    ```
+  </Accordion>
+
+  <Accordion title="Don't track sensitive data">
+    Never include PII or sensitive information in event properties:
+
+    **Never track:**
+    - Email addresses
+    - Full names
+    - Credit card numbers
+    - Phone numbers
+    - Passwords
+    - Social security numbers
+
+    **Safe to track:**
+    - User IDs (hashed or internal)
+    - Plan types
+    - Feature flags
+    - Product SKUs
+    - Anonymized behavior
+  </Accordion>
+
+  <Accordion title="Validate events in development">
+    Test your tracking before deploying:
+
+    ```tsx
+    import { track } from '@databuddy/sdk';
+
+    function validateAndTrack(
+      name: string,
+      properties?: Record<string, unknown>
+    ) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Event:', name, properties);
+      }
+      track(name, properties);
+    }
+
+    // Use in your app
+    validateAndTrack('feature_used', { feature: 'export' });
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Advanced: Event batching
+
+Databuddy automatically batches events for efficiency. You can configure batching behavior:
+
+```tsx
+import { Databuddy } from '@databuddy/sdk/react';
+
+<Databuddy
+  enableBatching={true}
+  batchSize={10}        // Send after 10 events
+  batchTimeout={2000}   // Or after 2 seconds
+/>
+```
+
+For critical events that must be sent immediately:
+
+```tsx
+import { track, flush } from '@databuddy/sdk';
+
+// Track critical event
+track('purchase_completed', { amount: 99.99 });
+
+// Force immediate send
+flush();
+```
+
+## Exporting data
+
+You can export your analytics data for further analysis:
+
+1. **CSV Export:** Download event data directly from the dashboard
+2. **API Access:** Use the Databuddy API to fetch events programmatically
+3. **Webhooks:** Set up webhooks to receive events in real-time (see [webhooks guide](/guides/webhooks))
+
+## Dashboard visualization tips
+
+- **Use time-series charts** for trend analysis (daily/weekly/monthly views)
+- **Create funnel visualizations** to track conversion paths
+- **Build cohort reports** to analyze retention by signup date
+- **Set up alerts** for anomalies (sudden drops/spikes in key metrics)
+- **Segment by device type** to optimize mobile vs desktop experiences
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Webhooks" icon="webhook" href="/guides/webhooks">
+    Integrate with payment providers and external services
+  </Card>
+  <Card title="API Reference" icon="code" href="/api-reference">
+    Full SDK documentation and examples
+  </Card>
+  <Card title="Troubleshooting" icon="wrench" href="/guides/troubleshooting">
+    Debug tracking issues and common problems
+  </Card>
+  <Card title="Migration Guide" icon="arrow-right-arrow-left" href="/guides/migrating-from-ga">
+    Switch from Google Analytics
+  </Card>
+</CardGroup>

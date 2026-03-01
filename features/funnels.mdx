@@ -1,0 +1,387 @@
+---
+title: Funnels
+description: Analyze multi-step user journeys and identify conversion drop-off points
+---
+
+Funnels help you understand multi-step conversion paths on your website. Track how users progress through signup flows, checkout processes, onboarding sequences, and more.
+
+## What are Funnels?
+
+A funnel is a series of sequential steps that users take to complete a conversion. Each step represents a page view or custom event, and Databuddy tracks:
+
+- How many users enter each step
+- How many progress to the next step
+- Where users drop off
+- Overall conversion rate
+
+**Use funnels for:**
+
+- Signup/registration flows
+- Checkout processes
+- Onboarding sequences
+- Content consumption paths
+- Multi-page forms
+
+<Info>
+For single-step conversions (e.g., newsletter signup), use [Goals](/features/goals) instead.
+</Info>
+
+## Funnel Structure
+
+### Steps
+
+Each funnel consists of 2-10 sequential steps:
+
+- **Step Type**: `PAGE_VIEW` or `EVENT`
+- **Target**: Page path or event name
+- **Name**: Human-readable step label
+- **Conditions**: Optional step-specific filters
+
+### Example: Signup Funnel
+
+```json
+[
+  {
+    "type": "PAGE_VIEW",
+    "target": "/",
+    "name": "Homepage"
+  },
+  {
+    "type": "PAGE_VIEW",
+    "target": "/signup",
+    "name": "Signup Page"
+  },
+  {
+    "type": "EVENT",
+    "target": "account_created",
+    "name": "Account Created"
+  }
+]
+```
+
+### Example: E-commerce Checkout
+
+```json
+[
+  {
+    "type": "PAGE_VIEW",
+    "target": "/products",
+    "name": "Product Page"
+  },
+  {
+    "type": "EVENT",
+    "target": "add_to_cart",
+    "name": "Add to Cart"
+  },
+  {
+    "type": "PAGE_VIEW",
+    "target": "/cart",
+    "name": "Cart Page"
+  },
+  {
+    "type": "PAGE_VIEW",
+    "target": "/checkout",
+    "name": "Checkout"
+  },
+  {
+    "type": "EVENT",
+    "target": "purchase_complete",
+    "name": "Purchase Complete"
+  }
+]
+```
+
+## Creating a Funnel
+
+### Via Dashboard
+
+1. Navigate to **Funnels** in the sidebar
+2. Click **Create Funnel**
+3. Enter a funnel name
+4. Add an optional description
+5. Define 2-10 sequential steps
+6. Configure filters (optional)
+7. Choose whether to ignore historic data
+8. Click **Create**
+
+### Funnel Fields
+
+| Field | Description | Required |
+|-------|-------------|----------|
+| Name | Funnel name (1-100 characters) | Yes |
+| Description | Explanation of the user journey | No |
+| Steps | Array of 2-10 sequential steps | Yes |
+| Filters | Global filters applied to entire funnel | No |
+| Ignore Historic Data | Only analyze users after funnel creation | No |
+
+### Creating Steps
+
+For each step, specify:
+
+1. **Type**: Choose `PAGE_VIEW` or `EVENT`
+2. **Target**: Enter the page path (e.g., `/pricing`) or event name (e.g., `button_click`)
+3. **Name**: Provide a descriptive label (e.g., "Pricing Page", "Click CTA Button")
+4. **Conditions**: Add optional step-specific filters
+
+<Tip>
+Use descriptive step names that clearly indicate what the user is doing at each stage.
+</Tip>
+
+## Funnel Analytics
+
+### Conversion Metrics
+
+For each funnel, view:
+
+- **Total Users Entered**: Users who started the funnel (completed step 1)
+- **Total Users Completed**: Users who finished all steps
+- **Overall Conversion Rate**: Percentage who completed the entire funnel
+- **Step-by-Step Conversion**: Conversion rate between each consecutive step
+- **Drop-Off Points**: Steps with the highest abandonment
+
+### Visualization
+
+Funnel analytics are displayed as:
+
+- **Funnel chart**: Visual representation of user flow
+- **Step table**: Detailed metrics for each step
+- **Trend chart**: Conversion rate over time
+
+### Example Metrics
+
+```
+Signup Funnel (Last 30 Days)
+
+Step 1: Homepage          1,000 users (100%)
+  ↓ 60% conversion
+Step 2: Signup Page         600 users (60%)
+  ↓ 75% conversion
+Step 3: Account Created     450 users (45%)
+
+Overall Conversion Rate: 45%
+```
+
+## Funnel by Referrer
+
+Analyze how different traffic sources perform:
+
+1. Open a funnel's detail page
+2. Click **By Referrer**
+3. View conversion rates segmented by traffic source
+
+This helps identify:
+
+- Which channels drive the best conversions
+- Where to focus marketing efforts
+- Traffic quality differences
+
+### Example: Referrer Breakdown
+
+```
+Signup Funnel by Traffic Source
+
+Google Organic:    52% conversion (250 users)
+Direct:            48% conversion (180 users)
+Twitter:           38% conversion (95 users)
+Facebook Ads:      28% conversion (42 users)
+```
+
+## Funnel Filters
+
+Apply global filters to the entire funnel:
+
+### Filter Options
+
+- **Country**: Analyze specific geographic regions
+- **Device Type**: Compare desktop vs. mobile conversions
+- **UTM Parameters**: Focus on specific campaigns
+- **Custom Properties**: Filter by event metadata
+
+### Filter Example
+
+Analyze mobile checkout performance:
+
+```json
+{
+  "name": "Mobile Checkout Funnel",
+  "filters": [
+    {
+      "field": "device_type",
+      "operator": "equals",
+      "value": "mobile"
+    }
+  ],
+  "steps": [
+    { "type": "PAGE_VIEW", "target": "/cart", "name": "Cart" },
+    { "type": "PAGE_VIEW", "target": "/checkout", "name": "Checkout" },
+    { "type": "EVENT", "target": "purchase", "name": "Purchase" }
+  ]
+}
+```
+
+## Date Range Analysis
+
+View funnel performance over different time periods:
+
+1. Select a date range (last 7/30/90 days or custom)
+2. Databuddy recalculates all funnel metrics
+3. Compare conversion rates across periods
+
+<Note>
+Funnel analytics update in real-time as users progress through steps.
+</Note>
+
+## Managing Funnels
+
+### Editing a Funnel
+
+1. Click a funnel from the funnels list
+2. Click **Edit**
+3. Modify the name, description, steps, or filters
+4. Click **Save**
+
+<Warning>
+Changing funnel steps will reset conversion history. Consider creating a new funnel to preserve historical data.
+</Warning>
+
+### Pausing a Funnel
+
+Temporarily stop tracking:
+
+1. Open the funnel's detail page
+2. Toggle **Active** to off
+3. The funnel stops recording new sessions
+
+Historical data is preserved.
+
+### Deleting a Funnel
+
+Permanently remove a funnel:
+
+1. Open the funnel's detail page
+2. Click **Delete**
+3. Confirm deletion
+
+<Warning>
+Deleting a funnel permanently removes all associated analytics data. This cannot be undone.
+</Warning>
+
+## Historic Data
+
+By default, funnels analyze all user sessions including those before the funnel was created.
+
+### Ignoring Historic Data
+
+Enable "Ignore Historic Data" to:
+
+- Only track sessions after funnel creation
+- Measure impact of recent changes
+- Avoid skewed metrics from old sessions
+
+Useful when launching new features or redesigns.
+
+## Best Practices
+
+### Keep Funnels Focused
+
+- Limit to 2-6 steps for clarity
+- Each step should represent a meaningful action
+- Avoid unnecessary intermediate steps
+
+### Name Steps Clearly
+
+Use action-oriented names:
+
+- Good: "View Pricing", "Start Trial", "Complete Signup"
+- Bad: "Step 1", "Page 2", "Final"
+
+### Analyze Drop-Off Points
+
+Focus on steps with:
+
+- Conversion rate < 50%
+- Sudden drops compared to previous step
+- High abandonment volume
+
+These indicate UX issues or friction points.
+
+### Create Segment-Specific Funnels
+
+Build separate funnels for:
+
+- Mobile vs. Desktop
+- Different traffic sources
+- Geographic regions
+- Customer segments
+
+### Test and Iterate
+
+1. Identify low-converting steps
+2. Hypothesize improvements
+3. Implement changes
+4. Measure impact with updated funnel
+
+## Optimization Strategies
+
+### Reduce Friction
+
+If users drop off at a specific step:
+
+- Simplify the page
+- Remove unnecessary form fields
+- Improve load time
+- Add trust signals
+- Clarify next steps
+
+### A/B Testing
+
+Create duplicate funnels to test:
+
+- Different page designs
+- Form layouts
+- CTA copy
+- Page order
+
+Compare conversion rates to identify winners.
+
+### Mobile Optimization
+
+If mobile conversion is low:
+
+- Test on real devices
+- Simplify mobile forms
+- Optimize for touch
+- Reduce page weight
+
+## Integration with AI Insights
+
+Use the AI assistant to analyze funnels:
+
+**Example queries:**
+
+- "Show me all my funnels"
+- "What's the conversion rate for the signup funnel?"
+- "Which step has the biggest drop-off?"
+- "Create a checkout funnel"
+- "How does the signup funnel perform by referrer?"
+
+<Tip>
+The AI can identify trends, suggest optimizations, and create new funnels through conversation.
+</Tip>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Goals" icon="bullseye" href="/features/goals">
+    Track single-step conversions
+  </Card>
+  <Card title="Analytics" icon="chart-line" href="/features/analytics">
+    View detailed traffic analytics
+  </Card>
+  <Card title="AI Insights" icon="sparkles" href="/features/ai-insights">
+    Get funnel optimization suggestions
+  </Card>
+  <Card title="Dashboard" icon="gauge" href="/features/dashboard">
+    Return to dashboard overview
+  </Card>
+</CardGroup>

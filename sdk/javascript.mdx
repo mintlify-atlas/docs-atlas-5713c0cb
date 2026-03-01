@@ -1,0 +1,422 @@
+---
+title: 'JavaScript SDK'
+description: 'Use Databuddy analytics in vanilla JavaScript applications'
+icon: 'js'
+---
+
+## Installation
+
+### Via Script Tag (Recommended)
+
+Add the Databuddy script to your HTML:
+
+```html index.html
+<!DOCTYPE html>
+<html>
+<head>
+  <script
+    src="https://cdn.databuddy.cc/databuddy.js"
+    data-client-id="your-client-id"
+    data-track-web-vitals="true"
+    async
+  ></script>
+</head>
+<body>
+  <!-- Your content -->
+</body>
+</html>
+```
+
+### Via NPM Package
+
+<CodeGroup>
+```bash npm
+npm install @databuddy/sdk
+```
+
+```bash yarn
+yarn add @databuddy/sdk
+```
+
+```bash pnpm
+pnpm add @databuddy/sdk
+```
+
+```bash bun
+bun add @databuddy/sdk
+```
+</CodeGroup>
+
+Import the tracking functions:
+
+```javascript
+import { track, flush, clear, getAnonymousId } from '@databuddy/sdk';
+```
+
+## Tracking Events
+
+### Track Custom Events
+
+Track any custom event with optional properties:
+
+```javascript
+import { track } from '@databuddy/sdk';
+
+// Simple event
+track('button_clicked');
+
+// Event with properties
+track('product_viewed', {
+  productId: 'sku-123',
+  price: 29.99,
+  category: 'electronics'
+});
+
+// Track user actions
+track('signup_completed', {
+  plan: 'pro',
+  source: 'landing_page',
+  referrer: document.referrer
+});
+```
+
+### Track Errors
+
+Track JavaScript errors:
+
+```javascript
+import { trackError } from '@databuddy/sdk';
+
+try {
+  riskyOperation();
+} catch (error) {
+  trackError(error.message, {
+    stack: error.stack,
+    error_type: error.name,
+    context: 'checkout_flow'
+  });
+}
+```
+
+### Automatic Error Tracking
+
+Enable automatic error tracking via script tag:
+
+```html
+<script
+  src="https://cdn.databuddy.cc/databuddy.js"
+  data-client-id="your-client-id"
+  data-track-errors="true"
+  async
+></script>
+```
+
+## Session Management
+
+### Get Tracking IDs
+
+Retrieve the anonymous and session IDs:
+
+```javascript
+import { getAnonymousId, getSessionId, getTrackingIds } from '@databuddy/sdk';
+
+// Get anonymous ID (persists across sessions)
+const anonId = getAnonymousId();
+console.log('Anonymous ID:', anonId);
+
+// Get session ID (expires after 30 min inactivity)
+const sessionId = getSessionId();
+console.log('Session ID:', sessionId);
+
+// Get both at once
+const { anonId, sessionId } = getTrackingIds();
+```
+
+### Clear Session
+
+Reset the user session (useful for logout):
+
+```javascript
+import { clear } from '@databuddy/sdk';
+
+function handleLogout() {
+  // Clear user session
+  clear();
+  
+  // Redirect to login
+  window.location.href = '/login';
+}
+```
+
+### Cross-Domain Tracking
+
+Pass tracking IDs across domains you own:
+
+```javascript
+import { getTrackingParams } from '@databuddy/sdk';
+
+// Generate query string with tracking IDs
+const params = getTrackingParams();
+const url = `https://app.example.com/dashboard?${params}`;
+// Result: https://app.example.com/dashboard?anonId=xxx&sessionId=yyy
+
+// Use in links
+const link = document.getElementById('external-link');
+link.href = `https://shop.example.com?${getTrackingParams()}`;
+```
+
+## Global Tracker API
+
+### Window Object
+
+The tracker is available globally at `window.databuddy` or the shorthand `window.db`:
+
+```javascript
+// Both are equivalent
+window.databuddy.track('event_name', { prop: 'value' });
+window.db.track('event_name', { prop: 'value' });
+```
+
+### Available Methods
+
+```javascript
+// Track custom event
+window.databuddy.track(eventName: string, properties?: object): void
+
+// Manually track page view
+window.databuddy.screenView(properties?: object): void
+
+// Set properties for all future events
+window.databuddy.setGlobalProperties(properties: object): void
+
+// Clear user session
+window.databuddy.clear(): void
+
+// Force send queued events
+window.databuddy.flush(): void
+
+// Get current configuration
+window.databuddy.options: DatabuddyConfig
+```
+
+### Set Global Properties
+
+Attach properties to all future events:
+
+```javascript
+// Set user properties after login
+window.databuddy.setGlobalProperties({
+  userId: '12345',
+  plan: 'enterprise',
+  role: 'admin'
+});
+
+// All subsequent events will include these properties
+window.databuddy.track('feature_used', { feature: 'export' });
+// Sent as: { feature: 'export', userId: '12345', plan: 'enterprise', role: 'admin' }
+```
+
+## Declarative Tracking (Data Attributes)
+
+Track clicks without JavaScript using `data-track` attributes:
+
+```html
+<!-- Track button clicks -->
+<button
+  data-track="cta_clicked"
+  data-button-text="Get Started"
+  data-location="hero"
+>
+  Get Started
+</button>
+
+<!-- Track navigation -->
+<a
+  href="/pricing"
+  data-track="nav_link_clicked"
+  data-destination="pricing"
+  data-source="header"
+>
+  Pricing
+</a>
+
+<!-- Track form submissions -->
+<form data-track="signup_form_submitted" data-form-type="newsletter">
+  <input type="email" name="email" />
+  <button type="submit">Subscribe</button>
+</form>
+```
+
+<Note>
+Enable attribute tracking by adding `data-track-attributes="true"` to the script tag.
+</Note>
+
+### Attribute Naming Convention
+
+Data attributes are automatically converted from kebab-case to camelCase:
+
+```html
+<button
+  data-track="event_name"
+  data-button-text="Click Me"    <!-- becomes: buttonText -->
+  data-user-id="123"             <!-- becomes: userId -->
+  data-is-premium="true"         <!-- becomes: isPremium -->
+>
+  Click Me
+</button>
+```
+
+## Flushing Events
+
+Events are automatically batched for efficiency. Force send queued events:
+
+```javascript
+import { track, flush } from '@databuddy/sdk';
+
+// Track event before leaving page
+function handleExternalLink(url) {
+  track('external_link_clicked', { url });
+  
+  // Ensure event is sent before navigation
+  flush();
+  
+  // Navigate after a brief delay
+  setTimeout(() => {
+    window.location.href = url;
+  }, 100);
+}
+```
+
+## Checking Tracker Availability
+
+Check if the tracker has loaded:
+
+```javascript
+import { isTrackerAvailable, track } from '@databuddy/sdk';
+
+if (isTrackerAvailable()) {
+  track('page_interactive', { loadTime: performance.now() });
+} else {
+  console.warn('Databuddy tracker not loaded');
+}
+```
+
+## Configuration via Script Tag
+
+All options can be configured via `data-*` attributes:
+
+```html
+<script
+  src="https://cdn.databuddy.cc/databuddy.js"
+  data-client-id="your-client-id"
+  data-api-url="https://basket.databuddy.cc"
+  data-track-web-vitals="true"
+  data-track-errors="true"
+  data-track-scroll-depth="true"
+  data-track-outgoing-links="true"
+  data-track-interactions="true"
+  data-track-attributes="true"
+  data-sampling-rate="0.5"
+  data-enable-batching="true"
+  data-batch-size="10"
+  data-debug="false"
+  async
+></script>
+```
+
+## Advanced Usage
+
+### Custom Filters
+
+Filter events programmatically:
+
+```javascript
+// Set filter function (must be set before script loads)
+window.databuddyConfig = {
+  filter: (event) => {
+    // Skip admin pages
+    if (event.path?.includes('/admin')) {
+      return false;
+    }
+    
+    // Skip development events
+    if (window.location.hostname === 'localhost') {
+      return false;
+    }
+    
+    return true;
+  }
+};
+```
+
+### URL Pattern Masking
+
+Mask sensitive URLs:
+
+```html
+<script
+  src="https://cdn.databuddy.cc/databuddy.js"
+  data-client-id="your-client-id"
+  data-skip-patterns='["/admin/**", "/internal/**"]'
+  data-mask-patterns='["/users/*", "/accounts/*"]'
+  async
+></script>
+```
+
+### Conditional Tracking
+
+Disable tracking based on conditions:
+
+```javascript
+const isDevelopment = window.location.hostname === 'localhost';
+const hasUserConsent = localStorage.getItem('analytics_consent') === 'true';
+
+if (!isDevelopment && hasUserConsent) {
+  const script = document.createElement('script');
+  script.src = 'https://cdn.databuddy.cc/databuddy.js';
+  script.setAttribute('data-client-id', 'your-client-id');
+  script.async = true;
+  document.head.appendChild(script);
+}
+```
+
+## TypeScript Support
+
+The SDK includes TypeScript definitions:
+
+```typescript
+import type { 
+  DatabuddyTracker, 
+  DatabuddyConfig,
+  EventProperties 
+} from '@databuddy/sdk';
+
+// Type-safe tracker access
+const tracker: DatabuddyTracker | undefined = window.databuddy;
+
+// Type-safe event properties
+const properties: EventProperties = {
+  buttonText: 'Subscribe',
+  plan: 'premium',
+  price: 29.99
+};
+
+tracker?.track('subscription_started', properties);
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="/sdk/configuration">
+    Explore all configuration options
+  </Card>
+  <Card title="React SDK" icon="react" href="/sdk/react">
+    Use React hooks and components
+  </Card>
+  <Card title="Node.js SDK" icon="server" href="/sdk/nodejs">
+    Server-side event tracking
+  </Card>
+  <Card title="API Reference" icon="book" href="/api-reference">
+    Complete API documentation
+  </Card>
+</CardGroup>

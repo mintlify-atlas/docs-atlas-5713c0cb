@@ -1,0 +1,300 @@
+---
+title: 'Privacy-First Analytics'
+description: 'Learn how Databuddy keeps your users anonymous while providing powerful analytics'
+icon: 'shield-halved'
+---
+
+Databuddy is built with privacy at its core. Unlike traditional analytics platforms, we don't use cookies, fingerprinting, or personally identifiable information (PII) to track your users.
+
+## No Cookies
+
+Databuddy operates completely **cookie-free**. Instead of using cookies to track users across sessions, we use:
+
+- **LocalStorage** for anonymous IDs (stored as `did`)
+- **SessionStorage** for session IDs (stored as `did_session`)
+- **URL parameters** for cross-domain tracking (optional)
+
+This approach means you don't need cookie consent banners in most jurisdictions, simplifying compliance with GDPR, CCPA, and other privacy regulations.
+
+```typescript
+// From packages/tracker/src/core/tracker.ts:145-165
+getOrCreateAnonymousId(): string {
+  if (this.isServer()) {
+    return this.generateAnonymousId();
+  }
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const anonId = urlParams.get("anonId");
+  if (anonId) {
+    localStorage.setItem("did", anonId);
+    return anonId;
+  }
+
+  const storedId = localStorage.getItem("did");
+  if (storedId) {
+    return storedId;
+  }
+
+  const newId = this.generateAnonymousId();
+  localStorage.setItem("did", newId);
+  return newId;
+}
+```
+
+## Anonymous IDs
+
+Every visitor gets a randomly generated **anonymous ID** in the format `anon_[uuid]`. This ID:
+
+- Is generated client-side using UUIDv4
+- Contains no personal information
+- Cannot be used to identify individuals
+- Persists in localStorage for consistent tracking across page views
+- Can be cleared by the user at any time
+
+<CodeGroup>
+```typescript Anonymous ID Format
+// Generated format: anon_550e8400-e29b-41d4-a716-446655440000
+generateAnonymousId(): string {
+  return `anon_${generateUUIDv4()}`;
+}
+```
+</CodeGroup>
+
+## IP Anonymization
+
+While Databuddy collects IP addresses for geolocation (country, region, city), the IP itself is:
+
+- **Never stored in raw form** in ClickHouse analytics tables
+- Used only for geo-enrichment at ingestion time
+- Hashed or discarded after processing
+- Not available in exports or API responses
+
+The ClickHouse schema stores geographic data but not the original IP:
+
+```sql
+-- From packages/db/src/clickhouse/schema.ts:28-39
+ip String,  -- Used only for enrichment, not exposed
+browser_name Nullable(String),
+os_name Nullable(String),
+device_type Nullable(String),
+country Nullable(String),
+region Nullable(String),
+city Nullable(String)
+```
+
+## User Opt-Out
+
+Users can opt out of tracking at any time using the global opt-out functions:
+
+```javascript
+// Opt out of tracking
+window.databuddyOptOut();
+
+// Opt back in
+window.databuddyOptIn();
+```
+
+When opted out:
+- The flag `databuddy_opt_out` is set to `true` in localStorage
+- All tracking stops immediately
+- No events are sent to the server
+- The user's preference persists across sessions
+
+<Tip>
+The opt-out mechanism is tested in `packages/tracker/tests/privacy.spec.ts` to ensure it works correctly.
+</Tip>
+
+## Bot Detection
+
+Databuddy automatically detects and filters bot traffic to keep your analytics clean:
+
+```typescript
+// From packages/tracker/src/core/tracker.ts:112-130
+detectBot(): boolean {
+  if (this.isServer() || this.options.ignoreBotDetection) {
+    return false;
+  }
+
+  const ua = navigator.userAgent || "";
+  const isHeadless = HEADLESS_CHROME_REGEX.test(ua) || PHANTOMJS_REGEX.test(ua);
+
+  return Boolean(
+    navigator.webdriver ||
+    window.webdriver ||
+    isHeadless ||
+    window.callPhantom ||
+    window._phantom ||
+    window.selenium ||
+    document.documentElement.getAttribute("webdriver") === "true"
+  );
+}
+```
+
+Detected bots are:
+- Filtered out by default
+- Can be logged separately for debugging
+- Configurable via `ignoreBotDetection` option
+
+## Data Ownership
+
+With Databuddy, you maintain complete ownership of your data:
+
+- All data is stored in **your infrastructure** (self-hosted) or in **isolated databases** (cloud)
+- You can export your data at any time
+- You control retention periods
+- You decide when to delete data
+
+## GDPR Compliance
+
+Databuddy is designed to be GDPR-compliant out of the box:
+
+<AccordionGroup>
+<Accordion title="No PII Collection" icon="user-shield">
+We don't collect emails, names, phone numbers, or any personally identifiable information by default. Anonymous IDs cannot be traced back to individuals.
+</Accordion>
+
+<Accordion title="No Cross-Site Tracking" icon="ban">
+Databuddy doesn't track users across different websites. Each website gets its own isolated data with unique client IDs.
+</Accordion>
+
+<Accordion title="Data Minimization" icon="compress">
+We only collect what's necessary for analytics: page views, events, and aggregated performance metrics. No unnecessary tracking.
+</Accordion>
+
+<Accordion title="Right to Erasure" icon="eraser">
+Users can clear their anonymous ID and session data anytime by clearing localStorage or using the opt-out function.
+</Accordion>
+
+<Accordion title="Data Portability" icon="file-export">
+Export your analytics data in standard formats (JSON, CSV) via the API or dashboard.
+</Accordion>
+</AccordionGroup>
+
+## Sampling
+
+Reduce data collection even further with built-in sampling:
+
+```typescript
+<Databuddy
+  clientId="your-client-id"
+  samplingRate={0.5}  // Track only 50% of visitors
+/>
+```
+
+Sampling is applied client-side before any data is sent, ensuring that sampled-out users never transmit any data to your servers.
+
+## Path Masking
+
+Protect sensitive URLs with path masking:
+
+```typescript
+<Databuddy
+  clientId="your-client-id"
+  maskPatterns={[
+    "/users/*",      // Masks to /users/*
+    "/orders/**",    // Masks to /orders/*
+  ]}
+/>
+```
+
+From `packages/tracker/src/core/tracker.ts:250-277`, the masking logic replaces dynamic segments:
+
+- `/users/123` becomes `/users/*`
+- `/orders/456/items/789` becomes `/orders/*`
+
+## Skip Patterns
+
+Exclude specific pages from tracking entirely:
+
+```typescript
+<Databuddy
+  clientId="your-client-id"
+  skipPatterns={[
+    "/admin/*",
+    "/internal/*",
+  ]}
+/>
+```
+
+## Localhost Filtering
+
+By default, Databuddy doesn't track on localhost to avoid polluting your production analytics with development traffic:
+
+```typescript
+// From packages/tracker/src/core/tracker.ts:224-230
+protected shouldSkipTracking(): boolean {
+  if (this.isServer() || this.options.disabled || this.isLikelyBot) {
+    return true;
+  }
+
+  if (!isDebugMode() && isLocalhost()) {
+    return true;
+  }
+  // ...
+}
+```
+
+<Tip>
+Enable `debug: true` in development to test tracking on localhost.
+</Tip>
+
+## Privacy-First Architecture
+
+Databuddy's architecture is designed with privacy in mind:
+
+1. **Client-side anonymization**: Anonymous IDs generated in the browser
+2. **No third-party cookies**: All storage is first-party only
+3. **Minimal data transmission**: Only essential metrics are sent
+4. **Server-side enrichment**: Geo and UA parsing happens after ingestion
+5. **Separation of concerns**: PII-free analytics data in ClickHouse, metadata in PostgreSQL
+
+## Best Practices
+
+<CardGroup cols={2}>
+<Card title="Enable Batching" icon="layer-group">
+Reduce network requests by enabling batching:
+```typescript
+enableBatching={true}
+batchSize={20}
+```
+</Card>
+
+<Card title="Use Sampling" icon="percent">
+For high-traffic sites, sample your data:
+```typescript
+samplingRate={0.1}  // 10% sampling
+```
+</Card>
+
+<Card title="Mask Sensitive Paths" icon="mask">
+Protect user-specific URLs:
+```typescript
+maskPatterns={["/users/*", "/orders/*"]}
+```
+</Card>
+
+<Card title="Provide Opt-Out" icon="door-open">
+Add a clear opt-out link in your privacy policy:
+```javascript
+<button onClick={() => window.databuddyOptOut()}>
+  Opt Out of Analytics
+</button>
+```
+</Card>
+</CardGroup>
+
+## Learn More
+
+<CardGroup cols={2}>
+<Card title="Event Tracking" icon="chart-line" href="/concepts/event-tracking">
+Understand how events are collected and batched
+</Card>
+
+<Card title="Sessions & Users" icon="users" href="/concepts/sessions-users">
+Learn about session management and user identification
+</Card>
+
+<Card title="Data Model" icon="database" href="/concepts/data-model">
+Explore how data is structured in ClickHouse and PostgreSQL
+</Card>
+</CardGroup>

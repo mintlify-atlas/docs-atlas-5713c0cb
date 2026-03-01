@@ -1,0 +1,308 @@
+---
+title: 'Installation'
+description: 'Install the Databuddy SDK in your web or Node.js application'
+icon: 'download'
+---
+
+## Package Manager Installation
+
+Install the SDK using your preferred package manager:
+
+<CodeGroup>
+```bash npm
+npm install @databuddy/sdk
+```
+
+```bash yarn
+yarn add @databuddy/sdk
+```
+
+```bash pnpm
+pnpm add @databuddy/sdk
+```
+
+```bash bun
+bun add @databuddy/sdk
+```
+</CodeGroup>
+
+## Framework-Specific Setup
+
+### Next.js (App Router)
+
+Add the Databuddy component to your root layout:
+
+```tsx app/layout.tsx
+import { Databuddy } from '@databuddy/sdk/react';
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en">
+      <body>
+        {children}
+        <Databuddy
+          trackWebVitals
+          trackErrors
+          trackScrollDepth
+        />
+      </body>
+    </html>
+  );
+}
+```
+
+<Note>
+The `clientId` is automatically detected from `NEXT_PUBLIC_DATABUDDY_CLIENT_ID` environment variable.
+</Note>
+
+### Next.js (Pages Router)
+
+Add to `_app.tsx`:
+
+```tsx pages/_app.tsx
+import { Databuddy } from '@databuddy/sdk/react';
+import type { AppProps } from 'next/app';
+
+export default function App({ Component, pageProps }: AppProps) {
+  return (
+    <>
+      <Component {...pageProps} />
+      <Databuddy
+        trackWebVitals
+        trackErrors
+      />
+    </>
+  );
+}
+```
+
+### React (Vite / Create React App)
+
+Add to your root component:
+
+```tsx src/main.tsx
+import { Databuddy } from '@databuddy/sdk/react';
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import App from './App';
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <App />
+    <Databuddy
+      clientId="your-client-id"
+      trackWebVitals
+    />
+  </StrictMode>
+);
+```
+
+### Vue 3
+
+Add to your main app file:
+
+```typescript src/main.ts
+import { createApp } from 'vue';
+import { Databuddy } from '@databuddy/sdk/vue';
+import App from './App.vue';
+
+const app = createApp(App);
+
+app.component('Databuddy', Databuddy);
+app.mount('#app');
+```
+
+Then use in your root component:
+
+```vue App.vue
+<template>
+  <div id="app">
+    <RouterView />
+    <Databuddy
+      client-id="your-client-id"
+      :track-web-vitals="true"
+      :track-errors="true"
+    />
+  </div>
+</template>
+```
+
+### Node.js / Express
+
+For server-side tracking:
+
+<CodeGroup>
+```bash npm
+npm install @databuddy/sdk
+```
+
+```bash yarn
+yarn add @databuddy/sdk
+```
+
+```bash pnpm
+pnpm add @databuddy/sdk
+```
+
+```bash bun
+bun add @databuddy/sdk
+```
+</CodeGroup>
+
+```typescript server.ts
+import { Databuddy } from '@databuddy/sdk/node';
+
+const analytics = new Databuddy({
+  apiKey: process.env.DATABUDDY_API_KEY!,
+  websiteId: process.env.DATABUDDY_WEBSITE_ID,
+});
+
+// Track events
+await analytics.track({
+  name: 'api_request',
+  properties: {
+    endpoint: '/api/users',
+    method: 'POST',
+  },
+});
+
+// Flush before exit (important for serverless)
+await analytics.flush();
+```
+
+## CDN Installation (Script Tag)
+
+For quick setup without a build step:
+
+```html index.html
+<!DOCTYPE html>
+<html>
+<head>
+  <script
+    src="https://cdn.databuddy.cc/databuddy.js"
+    data-client-id="your-client-id"
+    data-track-web-vitals="true"
+    data-track-errors="true"
+    async
+  ></script>
+</head>
+<body>
+  <h1>My Website</h1>
+  
+  <script>
+    // Track custom events
+    window.databuddy.track('page_loaded', {
+      timestamp: Date.now()
+    });
+  </script>
+</body>
+</html>
+```
+
+### Script Tag Options
+
+All configuration options can be passed as `data-*` attributes:
+
+```html
+<script
+  src="https://cdn.databuddy.cc/databuddy.js"
+  data-client-id="your-client-id"
+  data-api-url="https://basket.databuddy.cc"
+  data-track-web-vitals="true"
+  data-track-errors="true"
+  data-track-scroll-depth="true"
+  data-track-outgoing-links="true"
+  data-sampling-rate="0.5"
+  data-debug="true"
+  async
+></script>
+```
+
+## Environment Variables
+
+The SDK automatically detects these environment variables:
+
+| Variable | Description | Example |
+|----------|-------------|----------|
+| `NEXT_PUBLIC_DATABUDDY_CLIENT_ID` | Your client ID (browser) | `3ed1fce1-5a56-4cbc-a917-66864f6d18e3` |
+| `DATABUDDY_API_KEY` | API key for Node.js SDK | `dbdy_xxx` |
+| `DATABUDDY_WEBSITE_ID` | Website ID for Node.js SDK | `website-uuid` |
+
+<Tip>
+For Next.js, prefix browser environment variables with `NEXT_PUBLIC_` to expose them to the client.
+</Tip>
+
+## Verification
+
+After installation, verify the SDK is working:
+
+### Browser Console
+
+Open your browser's developer console and check:
+
+```javascript
+// Check if tracker is loaded
+window.databuddy !== undefined; // Should be true
+
+// Get tracking IDs
+window.databuddy.options;
+
+// Track a test event
+window.databuddy.track('test_event', { source: 'console' });
+```
+
+### Debug Mode
+
+Enable debug mode to see detailed logs:
+
+```tsx
+<Databuddy debug />
+```
+
+This will log all events to the console before sending them.
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Script not loading">
+    - Check that `clientId` is provided or environment variable is set
+    - Verify the CDN URL is accessible
+    - Check browser console for errors
+    - Ensure ad blockers aren't blocking the script
+  </Accordion>
+
+  <Accordion title="Events not appearing in dashboard">
+    - Enable `debug` mode to see if events are being sent
+    - Check network tab for failed requests
+    - Verify your client ID is correct
+    - Ensure events aren't being filtered by `skipPatterns`
+  </Accordion>
+
+  <Accordion title="TypeScript errors">
+    - Ensure you're using TypeScript 4.5 or later
+    - Check that `@databuddy/sdk` is in your dependencies
+    - Restart your TypeScript server
+  </Accordion>
+
+  <Accordion title="Next.js hydration errors">
+    - Place `<Databuddy />` component at the end of your layout/app
+    - Ensure you're not using client-side only code in server components
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="JavaScript Guide" icon="js" href="/sdk/javascript">
+    Learn how to use the SDK in vanilla JavaScript
+  </Card>
+  <Card title="React Guide" icon="react" href="/sdk/react">
+    Explore React hooks and components
+  </Card>
+  <Card title="Configuration" icon="gear" href="/sdk/configuration">
+    See all available configuration options
+  </Card>
+  <Card title="Node.js Guide" icon="server" href="/sdk/nodejs">
+    Set up server-side tracking
+  </Card>
+</CardGroup>

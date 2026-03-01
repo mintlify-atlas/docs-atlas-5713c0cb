@@ -1,0 +1,64 @@
+---
+title: 'Delete Project'
+api: 'POST /websites/delete'
+description: 'Soft-deletes a website (project) and stops tracking'
+---
+
+## Authentication
+
+Requires either:
+- Session authentication with `delete` permission on the website
+- API key with `delete` permission
+
+## Request Body
+
+<ParamField body="id" type="string" required>
+  Website ID to delete
+</ParamField>
+
+## Response
+
+<ResponseField name="success" type="boolean">
+  Always `true` if deletion succeeded
+</ResponseField>
+
+## Behavior
+
+Deleting a website:
+- Performs a soft delete (data is retained for recovery)
+- Stops accepting new tracking events for this `clientId`
+- Removes website from dashboard listings
+- Analytics data remains queryable for 90 days
+- Can be restored by contacting support within 90 days
+
+## Example Request
+
+```bash
+curl -X POST https://api.databuddy.cc/websites/delete \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "web_xyz789"
+  }'
+```
+
+## Example Response
+
+```json
+{
+  "success": true
+}
+```
+
+## Error Responses
+
+<ResponseField name="error" type="string">
+  Error message if deletion fails
+</ResponseField>
+
+```json
+{
+  "error": "Website not found",
+  "code": "NOT_FOUND"
+}
+```

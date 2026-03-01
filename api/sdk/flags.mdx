@@ -1,0 +1,285 @@
+---
+title: 'Feature Flags SDK'
+description: 'Client-side feature flag evaluation with React and Vue integrations'
+---
+
+## Installation
+
+```bash
+npm install @databuddy/sdk
+```
+
+## React Integration
+
+### Setup Provider
+
+Wrap your app with `FlagsProvider`:
+
+```tsx
+import { FlagsProvider } from '@databuddy/sdk/react';
+
+function App() {
+  return (
+    <FlagsProvider
+      clientId="your_website_id"
+      user={{
+        id: currentUser?.id,
+        email: currentUser?.email,
+        country: 'US'
+      }}
+    >
+      <YourApp />
+    </FlagsProvider>
+  );
+}
+```
+
+### useFlag Hook
+
+Check if a flag is enabled:
+
+```tsx
+import { useFlag } from '@databuddy/sdk/react';
+
+function FeatureComponent() {
+  const { on, loading } = useFlag('new-checkout-flow');
+
+  if (loading) return <Spinner />;
+
+  return on ? <NewCheckout /> : <OldCheckout />;
+}
+```
+
+### useFeature Hook (Alias)
+
+```tsx
+import { useFeature } from '@databuddy/sdk/react';
+
+function DashboardPage() {
+  const showAnalytics = useFeature('analytics-dashboard');
+
+  return (
+    <div>
+      {showAnalytics && <AnalyticsDashboard />}
+    </div>
+  );
+}
+```
+
+### useFlagValue Hook
+
+Get a flag's payload value:
+
+```tsx
+import { useFlagValue } from '@databuddy/sdk/react';
+
+function PricingPage() {
+  const discount = useFlagValue<number>('summer-discount', 0);
+
+  return (
+    <div>
+      <h2>Special Offer: {discount}% Off!</h2>
+    </div>
+  );
+}
+```
+
+### useVariant Hook
+
+For A/B testing with multivariant flags:
+
+```tsx
+import { useVariant } from '@databuddy/sdk/react';
+
+function HeroSection() {
+  const variant = useVariant('homepage-hero');
+
+  switch (variant) {
+    case 'variant-a':
+      return <HeroA />;
+    case 'variant-b':
+      return <HeroB />;
+    default:
+      return <DefaultHero />;
+  }
+}
+```
+
+## Vue Integration
+
+### Setup Plugin
+
+Install the flags plugin:
+
+```typescript
+// main.ts
+import { createApp } from 'vue';
+import { createFlagsPlugin } from '@databuddy/sdk/vue';
+import App from './App.vue';
+
+const app = createApp(App);
+
+const flagsPlugin = createFlagsPlugin({
+  clientId: 'your_website_id',
+  user: {
+    id: currentUser?.id,
+    email: currentUser?.email,
+    country: 'US'
+  }
+});
+
+app.use(flagsPlugin);
+app.mount('#app');
+```
+
+### useFlag Composable
+
+```vue
+<script setup lang="ts">
+import { useFlag } from '@databuddy/sdk/vue';
+
+const { on, loading } = useFlag('new-checkout-flow');
+</script>
+
+<template>
+  <div>
+    <Spinner v-if="loading" />
+    <NewCheckout v-else-if="on" />
+    <OldCheckout v-else />
+  </div>
+</template>
+```
+
+### v-if with Composable
+
+```vue
+<script setup lang="ts">
+import { useFlag } from '@databuddy/sdk/vue';
+
+const { on: showAnalytics } = useFlag('analytics-dashboard');
+</script>
+
+<template>
+  <div>
+    <AnalyticsDashboard v-if="showAnalytics" />
+  </div>
+</template>
+```
+
+## Flag Configuration
+
+### User Context
+
+Provide user attributes for targeting:
+
+```typescript
+{
+  user: {
+    id: 'user_123',           // Required for consistent rollouts
+    email: 'user@example.com',
+    country: 'US',
+    plan: 'premium',
+    signupDate: '2024-01-15',
+    // Any custom attributes
+    teamSize: 10,
+    industry: 'technology'
+  }
+}
+```
+
+### Anonymous Users
+
+Flags work without user context using anonymous IDs:
+
+```typescript
+<FlagsProvider clientId="your_website_id">
+  {/* Anonymous users get consistent flag evaluation */}
+</FlagsProvider>
+```
+
+## Advanced Usage
+
+### Programmatic Access
+
+```typescript
+import { createFlagsManager } from '@databuddy/sdk';
+
+const flags = createFlagsManager({
+  config: {
+    clientId: 'your_website_id',
+    user: {
+      id: 'user_123',
+      country: 'US'
+    }
+  }
+});
+
+// Check flag
+const result = await flags.isEnabled('new-feature');
+console.log(result.on); // true/false
+
+// Get payload
+const value = await flags.getValue('config-flag');
+console.log(value.data); // flag payload
+```
+
+### Server-Side Rendering
+
+Flags are client-side only. For SSR, use a loading state:
+
+```tsx
+function FeatureComponent() {
+  const { on, loading } = useFlag('feature-key');
+  
+  // Render placeholder on server
+  if (typeof window === 'undefined' || loading) {
+    return <Placeholder />;
+  }
+  
+  return on ? <NewFeature /> : <OldFeature />;
+}
+```
+
+## Flag State
+
+The `useFlag` hook returns:
+
+```typescript
+{
+  on: boolean,              // Flag is enabled
+  loading: boolean,         // Flag is loading
+  enabled: boolean,         // Alias for `on` (deprecated)
+  state: FlagState         // Full state object
+}
+```
+
+## Best Practices
+
+1. **Use user IDs for consistent rollouts** - Same user always gets same variant
+2. **Provide fallback values** - Handle loading and error states
+3. **Test both variants** - Ensure code works with flag on and off
+4. **Clean up old flags** - Remove flag checks after full rollout
+5. **Avoid nesting** - Don't nest too many flag checks in one component
+
+## TypeScript
+
+Full type safety:
+
+```typescript
+import { useFlag, useFlagValue } from '@databuddy/sdk/react';
+
+interface FeatureConfig {
+  maxItems: number;
+  showBanner: boolean;
+}
+
+function Component() {
+  const { on } = useFlag('feature-key');
+  const config = useFlagValue<FeatureConfig>(
+    'config-flag',
+    { maxItems: 10, showBanner: false }
+  );
+  
+  return <div>{config.maxItems}</div>;
+}
+```

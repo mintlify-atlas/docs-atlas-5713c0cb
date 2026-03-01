@@ -1,0 +1,397 @@
+---
+title: Feature Flags
+description: Control feature rollouts with privacy-first feature flags and gradual releases
+---
+
+Databuddy's feature flags let you control feature visibility, run A/B tests, and gradually roll out changes without deploying new code. All flag evaluations happen client-side with privacy-first design.
+
+## What are Feature Flags?
+
+Feature flags (also called feature toggles) let you enable or disable features for specific users or percentages of your audience. Use them to:
+
+- **Gradual rollouts**: Release to 5%, then 25%, then 100% of users
+- **A/B testing**: Test variants and measure impact
+- **Kill switches**: Disable features instantly if issues arise
+- **User targeting**: Show features to specific user segments
+- **Development**: Test features in production before full release
+
+## Flag Manager Architecture
+
+Databuddy's flag system is built for performance:
+
+- **Stale-while-revalidate caching**: Instant flag checks with background updates
+- **Request batching**: Multiple flag checks = single API request
+- **Request deduplication**: Eliminates redundant network calls
+- **Visibility API awareness**: Pauses updates when tab is hidden
+- **Anonymous ID support**: Deterministic rollouts without user accounts
+
+### Cache Behavior
+
+- **Cache TTL**: Flags cached for 60 seconds (configurable)
+- **Stale Time**: Revalidation after 30 seconds (configurable)
+- **Storage**: Persisted to localStorage for instant hydration
+- **Background refresh**: Updates happen without blocking UI
+
+<Info>
+Flags are cached client-side for performance. Changes may take up to 60 seconds to propagate to users.
+</Info>
+
+## SDK Integration
+
+### React
+
+Use the React SDK for flag management:
+
+```tsx
+import { FlagsProvider, useFlag } from '@databuddy/sdk/react/flags'
+
+function App() {
+  return (
+    <FlagsProvider config={{ clientId: 'your-client-id' }}>
+      <FeatureComponent />
+    </FlagsProvider>
+  )
+}
+
+function FeatureComponent() {
+  const newFeature = useFlag('new-feature')
+  
+  if (newFeature.isLoading) {
+    return <Spinner />
+  }
+  
+  if (newFeature.enabled) {
+    return <NewUI />
+  }
+  
+  return <OldUI />
+}
+```
+
+### Vue
+
+Use the Vue plugin:
+
+```typescript
+import { createFlagsPlugin } from '@databuddy/sdk/vue/flags'
+
+const app = createApp(App)
+app.use(createFlagsPlugin({ clientId: 'your-client-id' }))
+```
+
+```vue
+<template>
+  <div v-if="$flags.isEnabled('new-feature')">
+    <NewFeature />
+  </div>
+  <div v-else>
+    <OldFeature />
+  </div>
+</template>
+```
+
+### Node.js
+
+Use the Node SDK for server-side flags:
+
+```typescript
+import { createFlagsManager } from '@databuddy/sdk/node/flags'
+
+const flags = createFlagsManager({
+  clientId: 'your-client-id',
+  apiUrl: 'https://api.databuddy.cc'
+})
+
+const result = await flags.getFlag('new-feature', {
+  userId: 'user-123',
+  email: 'user@example.com'
+})
+
+if (result.enabled) {
+  // Feature is enabled
+}
+```
+
+## Flag Evaluation
+
+### Anonymous IDs
+
+For deterministic rollouts without user accounts:
+
+- Databuddy automatically generates a random anonymous ID
+- Stored in localStorage as `did` (same key as tracker)
+- Used for consistent flag evaluation across sessions
+- Format: `anon_<uuid>`
+
+<Tip>
+Anonymous IDs ensure users see the same flag state across page loads, even without login.
+</Tip>
+
+### User Context
+
+Target flags based on user attributes:
+
+```typescript
+const flags = useFlag('premium-feature', {
+  userId: 'user-123',
+  email: 'user@example.com',
+  customAttributes: {
+    plan: 'enterprise',
+    country: 'US'
+  }
+})
+```
+
+### Evaluation Priority
+
+1. User ID (if provided)
+2. Email (if provided)
+3. Anonymous ID (auto-generated)
+
+This ensures consistent flag values for identified users.
+
+## Flag Configuration
+
+### Manager Options
+
+```typescript
+const config = {
+  clientId: 'your-client-id',        // Required
+  apiUrl: 'https://api.databuddy.cc', // Optional (default shown)
+  disabled: false,                    // Disable all flags
+  debug: false,                       // Enable debug logging
+  skipStorage: false,                 // Disable localStorage persistence
+  autoFetch: true,                    // Fetch flags on init
+  cacheTtl: 60_000,                  // Cache duration (ms)
+  staleTime: 30_000,                 // Revalidation trigger (ms)
+  environment: 'production',          // Environment targeting
+  user: {
+    userId: 'user-123',
+    email: 'user@example.com'
+  }
+}
+```
+
+### Disabling Flags
+
+Temporarily disable all flags:
+
+```typescript
+const flags = createFlagsManager({
+  clientId: 'your-client-id',
+  disabled: true  // All flags return false
+})
+```
+
+Useful for testing or emergency shutoff.
+
+## Flag State
+
+The `isEnabled()` method returns detailed state:
+
+```typescript
+const state = flags.isEnabled('feature-key')
+
+{
+  on: true,              // Alias for `enabled`
+  enabled: true,         // Flag is enabled
+  status: 'ready',       // 'loading' | 'ready' | 'error'
+  loading: false,        // Still fetching
+  isLoading: false,      // Alias for `loading`
+  isReady: true,         // Data available
+  value: 'variant-a',    // Variant value (if multivariate)
+  variant: 'variant-a'   // Alias for `value`
+}
+```
+
+### Boolean Flags
+
+```typescript
+if (flags.isEnabled('new-feature').enabled) {
+  // Show feature
+}
+```
+
+### Multivariate Flags
+
+```typescript
+const buttonColor = flags.getValue('button-color', 'blue')
+// Returns: 'blue', 'green', 'red', etc.
+```
+
+## Advanced Features
+
+### Request Batching
+
+Multiple simultaneous flag checks are batched:
+
+```typescript
+// These three checks result in ONE API request
+const flag1 = await flags.getFlag('feature-1')
+const flag2 = await flags.getFlag('feature-2')
+const flag3 = await flags.getFlag('feature-3')
+```
+
+### Updating User Context
+
+Change user context dynamically:
+
+```typescript
+flags.updateUser({
+  userId: 'user-456',
+  email: 'new-user@example.com'
+})
+// Flags automatically refresh with new context
+```
+
+### Manual Refresh
+
+Force flag refresh:
+
+```typescript
+await flags.refresh()        // Refresh from API
+await flags.refresh(true)    // Clear cache and refresh
+```
+
+### Fetching All Flags
+
+Get all flags at once:
+
+```typescript
+await flags.fetchAllFlags()
+
+const allFlags = flags.getMemoryFlags()
+// Returns: { 'flag-1': { enabled: true, ... }, ... }
+```
+
+## Visibility Awareness
+
+The flag manager respects browser visibility:
+
+- **Tab visible**: Normal revalidation behavior
+- **Tab hidden**: Pauses background updates to save battery/bandwidth
+- **Tab becomes visible**: Revalidates stale flags
+
+This improves performance on mobile and background tabs.
+
+## Best Practices
+
+### Naming Conventions
+
+Use kebab-case for flag keys:
+
+- Good: `new-checkout-flow`, `dark-mode`, `premium-features`
+- Bad: `NewCheckoutFlow`, `DARK_MODE`, `premium_features`
+
+### Flag Lifecycle
+
+1. **Development**: Test flag in dev environment
+2. **Gradual rollout**: Start at 5-10% of users
+3. **Monitor metrics**: Watch for errors, performance issues
+4. **Increase rollout**: Gradually increase to 100%
+5. **Clean up**: Remove flag code once at 100% for >30 days
+
+### Error Handling
+
+Handle loading and error states:
+
+```typescript
+const feature = useFlag('new-feature')
+
+if (feature.isLoading) {
+  return <Skeleton />
+}
+
+if (feature.status === 'error') {
+  // Fall back to default behavior
+  return <OldFeature />
+}
+
+return feature.enabled ? <NewFeature /> : <OldFeature />
+```
+
+### Default Values
+
+Always provide defaults for multivariate flags:
+
+```typescript
+const variant = flags.getValue('experiment', 'control')
+// If flag fails to load, returns 'control'
+```
+
+### Testing
+
+Test both flag states:
+
+```typescript
+// Test enabled state
+it('shows new feature when flag enabled', () => {
+  mockFlags.isEnabled.mockReturnValue({ enabled: true, isReady: true })
+  render(<Component />)
+  expect(screen.getByText('New Feature')).toBeInTheDocument()
+})
+
+// Test disabled state
+it('shows old feature when flag disabled', () => {
+  mockFlags.isEnabled.mockReturnValue({ enabled: false, isReady: true })
+  render(<Component />)
+  expect(screen.getByText('Old Feature')).toBeInTheDocument()
+})
+```
+
+## Privacy & Security
+
+### Client-Side Evaluation
+
+Flags are evaluated in the browser/client:
+
+- No server-side state required
+- Reduced latency
+- Works offline (uses cached values)
+
+### No Personal Data
+
+Flag evaluation uses:
+
+- Anonymous IDs (random UUIDs)
+- Hashed user IDs (if provided)
+- No personal information transmitted
+
+### GDPR Compliance
+
+Anonymous IDs are:
+
+- Randomly generated
+- Not linked to personal data
+- Stored locally (not sent to servers)
+- Not considered personal identifiers under GDPR
+
+## Cleanup
+
+Clean up resources when done:
+
+```typescript
+flags.destroy()
+// Clears cache, cancels requests, removes listeners
+```
+
+<Warning>
+Always call `destroy()` when unmounting to prevent memory leaks.
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Analytics" icon="chart-line" href="/features/analytics">
+    Track feature usage with analytics
+  </Card>
+  <Card title="Goals" icon="bullseye" href="/features/goals">
+    Measure feature impact with goals
+  </Card>
+  <Card title="A/B Testing Guide" icon="flask" href="/guides/ab-testing">
+    Run experiments with feature flags
+  </Card>
+  <Card title="SDK Reference" icon="code" href="/sdk/react">
+    Full SDK documentation
+  </Card>
+</CardGroup>

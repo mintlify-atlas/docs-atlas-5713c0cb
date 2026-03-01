@@ -1,0 +1,627 @@
+---
+title: Database Setup
+description: Initialize and configure PostgreSQL and ClickHouse for Databuddy
+---
+
+## Overview
+
+Databuddy uses two primary databases:
+
+- **PostgreSQL** - User accounts, organizations, websites, API keys
+- **ClickHouse** - Analytics events, metrics, and time-series data
+- **Redis** - Caching and session management
+
+This guide covers setting up and initializing all database systems.
+
+## PostgreSQL Setup
+
+PostgreSQL stores all relational data for Databuddy.
+
+### Installation
+
+<Tabs>
+  <Tab title="Docker Compose">
+    The included `docker-compose.yaml` provides PostgreSQL 17:
+
+    ```yaml
+    services:
+      postgres:
+        image: postgres:17
+        container_name: databuddy-postgres
+        environment:
+          POSTGRES_DB: databuddy
+          POSTGRES_USER: databuddy
+          POSTGRES_PASSWORD: databuddy_dev_password
+        ports:
+          - "5432:5432"
+        volumes:
+          - postgres_data:/var/lib/postgresql/data
+    ```
+
+    Start PostgreSQL:
+    ```bash
+    docker-compose up -d postgres
+    ```
+  </Tab>
+
+  <Tab title="Ubuntu/Debian">
+    Install PostgreSQL 17:
+
+    ```bash
+    # Add PostgreSQL APT repository
+    sudo apt install -y postgresql-common
+    sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh
+
+    # Install PostgreSQL 17
+    sudo apt install -y postgresql-17
+
+    # Create database and user
+    sudo -u postgres psql -c "CREATE DATABASE databuddy;"
+    sudo -u postgres psql -c "CREATE USER databuddy WITH PASSWORD 'secure_password';"
+    sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE databuddy TO databuddy;"
+    ```
+  </Tab>
+
+  <Tab title="macOS">
+    Install via Homebrew:
+
+    ```bash
+    brew install postgresql@17
+    brew services start postgresql@17
+
+    # Create database
+    createdb databuddy
+    ```
+  </Tab>
+</Tabs>
+
+### Database Connection
+
+Configure the PostgreSQL connection in `.env`:
+
+```bash
+DATABASE_URL="postgres://databuddy:password@localhost:5432/databuddy"
+```
+
+**Format:** `postgres://username:password@host:port/database`
+
+### Running Migrations
+
+Databuddy uses Drizzle ORM for database migrations.
+
+<Steps>
+  <Step title="Generate migration files">
+    After modifying the schema:
+    
+    ```bash
+    bun run db:migrate
+    ```
+    
+    This creates SQL migration files in `packages/db/migrations/`.
+  </Step>
+
+  <Step title="Apply migrations to database">
+    Push migrations to your database:
+    
+    ```bash
+    bun run db:push
+    ```
+    
+    For production:
+    ```bash
+    bun run db:deploy
+    ```
+  </Step>
+
+  <Step title="Verify schema">
+    Check that tables were created:
+    
+    ```bash
+    psql $DATABASE_URL -c "\dt"
+    ```
+  </Step>
+</Steps>
+
+### Database Schema Overview
+
+PostgreSQL stores the following tables:
+
+**User Management:**
+- `user` - User accounts
+- `account` - OAuth provider accounts  
+- `session` - User sessions
+- `verification` - Email verification tokens
+
+**Organizations:**
+- `organization` - Organization/team records
+- `organization_member` - Team membership
+- `organization_invite` - Pending invites
+
+**Analytics Configuration:**
+- `website` - Tracked websites/apps
+- `api_key` - API authentication keys
+- `funnel` - Conversion funnels
+- `goal` - Goal tracking configuration
+
+**Billing:**
+- `subscription` - Payment subscriptions
+- `usage_record` - Usage tracking
+
+View the complete schema in `packages/db/src/drizzle/schema.ts`.
+
+### Database Backup
+
+Backup your PostgreSQL database regularly:
+
+```bash
+# Create backup
+pg_dump $DATABASE_URL > databuddy-backup-$(date +%Y%m%d).sql
+
+# Restore from backup
+psql $DATABASE_URL < databuddy-backup-20260301.sql
+```
+
+For automated backups:
+
+```bash
+# Add to crontab (daily at 2 AM)
+0 2 * * * pg_dump postgres://user:pass@localhost:5432/databuddy | gzip > /backups/databuddy-$(date +\%Y\%m\%d).sql.gz
+```
+
+## ClickHouse Setup
+
+ClickHouse stores all analytics events and time-series metrics.
+
+### Installation
+
+<Tabs>
+  <Tab title="Docker Compose">
+    The included `docker-compose.yaml` provides ClickHouse 25.5.1:
+
+    ```yaml
+    services:
+      clickhouse:
+        image: clickhouse/clickhouse-server:25.5.1-alpine
+        container_name: databuddy-clickhouse
+        environment:
+          CLICKHOUSE_DB: databuddy_analytics
+          CLICKHOUSE_USER: default
+          CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+        ports:
+          - "8123:8123"  # HTTP interface
+          - "9000:9000"  # Native protocol
+        volumes:
+          - clickhouse_data:/var/lib/clickhouse
+        ulimits:
+          nofile:
+            soft: 262144
+            hard: 262144
+    ```
+
+    Start ClickHouse:
+    ```bash
+    docker-compose up -d clickhouse
+    ```
+  </Tab>
+
+  <Tab title="Ubuntu/Debian">
+    Install ClickHouse server:
+
+    ```bash
+    # Add ClickHouse repository
+    sudo apt-get install -y apt-transport-https ca-certificates dirmngr
+    sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 8919F6BD2B48D754
+    echo "deb https://packages.clickhouse.com/deb stable main" | sudo tee /etc/apt/sources.list.d/clickhouse.list
+
+    # Install ClickHouse
+    sudo apt-get update
+    sudo apt-get install -y clickhouse-server clickhouse-client
+
+    # Start service
+    sudo systemctl start clickhouse-server
+    sudo systemctl enable clickhouse-server
+    ```
+  </Tab>
+
+  <Tab title="macOS">
+    Install via Homebrew:
+
+    ```bash
+    brew install clickhouse
+    brew services start clickhouse
+    ```
+  </Tab>
+</Tabs>
+
+### ClickHouse Connection
+
+Configure the ClickHouse connection in `.env`:
+
+```bash
+CLICKHOUSE_URL="http://default:@localhost:8123/databuddy_analytics"
+```
+
+**Format:** `http://username:password@host:port/database`
+
+<Warning>
+  If you set a ClickHouse password, include it in the URL: `http://default:password@localhost:8123/database`
+</Warning>
+
+### Initialize ClickHouse Schema
+
+Databuddy provides a script to initialize all ClickHouse tables:
+
+```bash
+bun run clickhouse:init
+```
+
+This creates:
+- Three databases: `analytics`, `uptime`, `observability`
+- All required tables and materialized views
+
+You can also initialize manually using the ClickHouse client:
+
+```bash
+clickhouse-client --query "$(cat packages/db/src/clickhouse/schema.ts)"
+```
+
+### ClickHouse Schema Overview
+
+ClickHouse stores the following tables:
+
+**Analytics Database:**
+
+<AccordionGroup>
+  <Accordion title="events - Core analytics events">
+    Primary table for pageviews, custom events, and user interactions.
+    
+    **Key fields:**
+    - `client_id` - Website/app identifier
+    - `anonymous_id` - User identifier
+    - `session_id` - Session tracking
+    - `event_name` - Event type (screen_view, click, etc.)
+    - `url`, `path` - Page information
+    - `country`, `city` - Geo data
+    - `browser_name`, `os_name`, `device_type` - Device info
+    
+    **Engine:** MergeTree partitioned by month
+  </Accordion>
+
+  <Accordion title="error_spans - Error tracking">
+    JavaScript errors and exceptions.
+    
+    **Key fields:**
+    - `message` - Error message
+    - `filename`, `lineno`, `colno` - Error location
+    - `stack` - Stack trace
+    - `error_type` - Error classification
+    
+    **Engine:** MergeTree with 90-day TTL
+  </Accordion>
+
+  <Accordion title="web_vitals_spans - Performance metrics">
+    Core Web Vitals and performance data.
+    
+    **Metrics tracked:**
+    - LCP (Largest Contentful Paint)
+    - FCP (First Contentful Paint)
+    - CLS (Cumulative Layout Shift)
+    - INP (Interaction to Next Paint)
+    - TTFB (Time to First Byte)
+    - FPS (Frames Per Second)
+    
+    **Engine:** MergeTree
+  </Accordion>
+
+  <Accordion title="custom_events - API-generated events">
+    Server-side events sent via API.
+    
+    **Key fields:**
+    - `owner_id` - Organization ID
+    - `event_name` - Custom event name
+    - `namespace` - Optional grouping
+    - `properties` - JSON event data
+    
+    **Engine:** MergeTree
+  </Accordion>
+
+  <Accordion title="revenue - Payment transactions">
+    Revenue tracking from Stripe/Paddle.
+    
+    **Key fields:**
+    - `transaction_id` - Unique transaction
+    - `provider` - Payment processor
+    - `amount` - Transaction amount
+    - `currency` - Currency code
+    - `anonymous_id` - Attribution to user
+    
+    **Engine:** ReplacingMergeTree (handles refunds)
+  </Accordion>
+
+  <Accordion title="ai_traffic_spans - AI bot detection">
+    AI crawlers and assistant traffic.
+    
+    **Key fields:**
+    - `bot_type` - ai_crawler or ai_assistant
+    - `bot_name` - Detected bot (GPTBot, Claude-Web, etc.)
+    - `path` - Page accessed
+    
+    **Engine:** MergeTree
+  </Accordion>
+
+  <Accordion title="blocked_traffic - Bot blocking">
+    Blocked requests from bots and bad actors.
+    
+    **Key fields:**
+    - `block_reason` - Why blocked
+    - `block_category` - Blocking rule
+    - `bot_name` - Detected bot if applicable
+    - `ip`, `user_agent` - Request details
+    
+    **Engine:** MergeTree with 6-month TTL
+  </Accordion>
+</AccordionGroup>
+
+**Uptime Database:**
+
+- `uptime_monitor` - Website uptime monitoring data
+
+**Observability Database:**
+
+- `ai_call_spans` - LLM API call tracking (tokens, cost, latency)
+
+### Materialized Views
+
+Databuddy uses materialized views for pre-aggregated data:
+
+- `error_hourly_mv` → `error_hourly` - Hourly error aggregates
+- `web_vitals_hourly_mv` → `web_vitals_hourly` - Hourly performance stats  
+- `daily_pageviews_mv` → `daily_pageviews` - Daily pageview counts
+
+These views automatically populate as new data arrives.
+
+### ClickHouse Optimization
+
+For production deployments:
+
+<Steps>
+  <Step title="Set appropriate TTL policies">
+    Data is automatically cleaned up based on TTL settings:
+    
+    ```sql
+    -- Example: Shorten error retention to 30 days
+    ALTER TABLE analytics.error_spans 
+    MODIFY TTL toDateTime(timestamp) + INTERVAL 30 DAY;
+    ```
+  </Step>
+
+  <Step title="Configure compression">
+    ClickHouse uses ZSTD compression by default. Monitor compression ratios:
+    
+    ```sql
+    SELECT 
+      table,
+      formatReadableSize(sum(data_compressed_bytes)) AS compressed,
+      formatReadableSize(sum(data_uncompressed_bytes)) AS uncompressed,
+      round(sum(data_compressed_bytes) / sum(data_uncompressed_bytes) * 100, 2) AS ratio
+    FROM system.parts
+    WHERE database = 'analytics'
+    GROUP BY table;
+    ```
+  </Step>
+
+  <Step title="Optimize queries">
+    ClickHouse performs best with:
+    - Filters on `client_id` (primary key)
+    - Date range filters aligned to partitions
+    - Aggregations instead of individual row queries
+    
+    Use `EXPLAIN` to analyze query performance:
+    ```sql
+    EXPLAIN SELECT count() FROM analytics.events 
+    WHERE client_id = 'xxx' AND time >= today() - 7;
+    ```
+  </Step>
+</Steps>
+
+### ClickHouse Backup
+
+Backup ClickHouse data:
+
+```bash
+# Backup all databases to directory
+clickhouse-client --query "BACKUP DATABASE analytics TO Disk('backups', 'analytics-backup.zip')"
+
+# Restore from backup
+clickhouse-client --query "RESTORE DATABASE analytics FROM Disk('backups', 'analytics-backup.zip')"
+```
+
+For Docker:
+
+```bash
+# Create volume backup
+docker run --rm -v databuddy_clickhouse_data:/data -v $(pwd):/backup alpine tar czf /backup/clickhouse-backup.tar.gz /data
+
+# Restore volume
+docker run --rm -v databuddy_clickhouse_data:/data -v $(pwd):/backup alpine tar xzf /backup/clickhouse-backup.tar.gz -C /
+```
+
+## Redis Setup
+
+Redis provides caching and session storage.
+
+### Installation
+
+<Tabs>
+  <Tab title="Docker Compose">
+    The included `docker-compose.yaml` provides Redis 7:
+
+    ```yaml
+    services:
+      redis:
+        image: redis:7-alpine
+        container_name: databuddy-redis
+        ports:
+          - "6379:6379"
+        volumes:
+          - redis_data:/data
+        command: redis-server --appendonly yes --maxmemory 512mb
+    ```
+
+    Start Redis:
+    ```bash
+    docker-compose up -d redis
+    ```
+  </Tab>
+
+  <Tab title="Ubuntu/Debian">
+    ```bash
+    sudo apt install redis-server
+    sudo systemctl start redis-server
+    sudo systemctl enable redis-server
+    ```
+  </Tab>
+
+  <Tab title="macOS">
+    ```bash
+    brew install redis
+    brew services start redis
+    ```
+  </Tab>
+</Tabs>
+
+### Redis Connection
+
+```bash
+REDIS_URL="redis://localhost:6379"
+```
+
+For authenticated Redis:
+
+```bash
+REDIS_URL="redis://:password@localhost:6379"
+```
+
+### Redis Configuration
+
+Databuddy uses Redis for:
+
+- Session storage
+- Query result caching (TTL: 5 minutes)
+- Rate limiting
+- Background job queues
+
+No manual setup required - Redis is used automatically when configured.
+
+## Database Monitoring
+
+### PostgreSQL Monitoring
+
+```sql
+-- Check database size
+SELECT pg_size_pretty(pg_database_size('databuddy'));
+
+-- Active connections
+SELECT count(*) FROM pg_stat_activity;
+
+-- Slow queries
+SELECT query, calls, total_time, mean_time 
+FROM pg_stat_statements 
+ORDER BY mean_time DESC LIMIT 10;
+```
+
+### ClickHouse Monitoring
+
+```sql
+-- Check table sizes
+SELECT 
+  table,
+  formatReadableSize(sum(bytes)) AS size,
+  sum(rows) AS rows
+FROM system.parts
+WHERE database = 'analytics' AND active
+GROUP BY table;
+
+-- Query performance
+SELECT 
+  query,
+  count() as executions,
+  avg(query_duration_ms) as avg_duration_ms
+FROM system.query_log
+WHERE event_time > now() - INTERVAL 1 HOUR
+GROUP BY query
+ORDER BY avg_duration_ms DESC
+LIMIT 10;
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="PostgreSQL connection failed">
+    Check connection string and PostgreSQL service:
+    
+    ```bash
+    # Test connection
+    psql $DATABASE_URL -c "SELECT version();"
+    
+    # Check service status
+    sudo systemctl status postgresql
+    ```
+  </Accordion>
+
+  <Accordion title="ClickHouse tables not created">
+    Verify ClickHouse is running and accessible:
+    
+    ```bash
+    # Test HTTP interface
+    curl http://localhost:8123/ping
+    
+    # Check databases
+    clickhouse-client --query "SHOW DATABASES"
+    
+    # Re-run initialization
+    bun run clickhouse:init
+    ```
+  </Accordion>
+
+  <Accordion title="Migrations failing">
+    Check for schema conflicts:
+    
+    ```bash
+    # View pending migrations
+    bun run db:studio
+    
+    # Force reset (CAUTION: deletes data)
+    psql $DATABASE_URL -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
+    bun run db:push
+    ```
+  </Accordion>
+
+  <Accordion title="ClickHouse out of memory">
+    Increase memory limits or adjust query settings:
+    
+    ```sql
+    SET max_memory_usage = 10000000000; -- 10 GB
+    ```
+    
+    In docker-compose.yaml:
+    ```yaml
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Environment Variables" icon="key" href="/self-hosting/environment-variables">
+    Configure authentication, integrations, and features
+  </Card>
+  
+  <Card title="Configuration" icon="gear" href="/self-hosting/configuration">
+    Advanced configuration and tuning
+  </Card>
+</CardGroup>

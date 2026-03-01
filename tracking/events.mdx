@@ -1,0 +1,316 @@
+---
+title: Custom Events
+description: Track user actions and behaviors with custom events
+---
+
+## Overview
+
+Custom events allow you to track specific user actions beyond pageviews. Use the `track()` function to capture button clicks, form submissions, purchases, and any other meaningful interactions.
+
+## Basic Usage
+
+### Tracking Simple Events
+
+```typescript
+import { track } from '@databuddy/sdk';
+
+// Track an event without properties
+track('signup_started');
+
+// Track an event with properties
+track('button_clicked', {
+  buttonText: 'Get Started',
+  location: 'hero'
+});
+```
+
+### React Example
+
+```tsx
+import { track } from '@databuddy/sdk';
+
+function CheckoutButton() {
+  const handleClick = () => {
+    track('checkout_clicked', {
+      cartSize: 3,
+      totalValue: 149.99,
+      currency: 'USD'
+    });
+  };
+
+  return (
+    <button onClick={handleClick}>
+      Proceed to Checkout
+    </button>
+  );
+}
+```
+
+## Function Signature
+
+```typescript
+function track(
+  name: string,
+  properties?: Record<string, unknown>
+): void
+```
+
+### Parameters
+
+<ParamField path="name" type="string" required>
+  The event name. Use snake_case for consistency (e.g., `button_clicked`, `purchase_completed`).
+</ParamField>
+
+<ParamField path="properties" type="Record<string, unknown>">
+  Optional key-value pairs of event data. Supports strings, numbers, booleans, null, and undefined.
+</ParamField>
+
+<Note>
+The `track()` function is safe to call on the server (no-op) or before the tracker loads. Events are automatically batched for efficient delivery.
+</Note>
+
+## Common Event Examples
+
+### E-commerce Events
+
+```typescript
+import { track } from '@databuddy/sdk';
+
+// Product viewed
+track('product_viewed', {
+  productId: 'sku-123',
+  productName: 'Premium Widget',
+  price: 29.99,
+  category: 'widgets'
+});
+
+// Item added to cart
+track('item_added_to_cart', {
+  itemId: 'sku-123',
+  quantity: 2,
+  price: 29.99
+});
+
+// Purchase completed
+track('purchase_completed', {
+  orderId: 'order-789',
+  total: 59.98,
+  currency: 'USD',
+  itemCount: 2
+});
+```
+
+### User Engagement
+
+```typescript
+import { track } from '@databuddy/sdk';
+
+// Feature usage
+track('feature_used', {
+  feature: 'export',
+  format: 'csv',
+  rowCount: 150
+});
+
+// Form submission
+track('form_submitted', {
+  formId: 'contact-form',
+  formType: 'contact',
+  success: true
+});
+
+// Video interaction
+track('video_played', {
+  videoId: 'intro-tutorial',
+  duration: 120,
+  progress: 0
+});
+```
+
+### Navigation Events
+
+```typescript
+import { track } from '@databuddy/sdk';
+
+track('nav_link_clicked', {
+  destination: '/pricing',
+  location: 'header'
+});
+
+track('cta_clicked', {
+  ctaText: 'Start Free Trial',
+  placement: 'hero'
+});
+```
+
+## Declarative Tracking with Data Attributes
+
+Enable automatic event tracking without JavaScript by adding `data-track` attributes to elements. You must enable this feature in your tracker configuration.
+
+### Enable Data Attributes
+
+```tsx
+import Databuddy from '@databuddy/sdk/react';
+
+export default function App() {
+  return (
+    <Databuddy
+      clientId="your-client-id"
+      trackAttributes // Enable data attribute tracking
+    >
+      {children}
+    </Databuddy>
+  );
+}
+```
+
+### HTML Examples
+
+```html
+<!-- Simple event -->
+<button data-track="cta_clicked">
+  Get Started
+</button>
+
+<!-- Event with properties (kebab-case converts to camelCase) -->
+<button
+  data-track="button_clicked"
+  data-button-text="Get Started"
+  data-location="hero"
+  data-variant="primary"
+>
+  Get Started
+</button>
+
+<!-- Navigation link -->
+<a
+  href="/pricing"
+  data-track="nav_link_clicked"
+  data-destination="pricing"
+  data-source="header"
+>
+  Pricing
+</a>
+```
+
+<Info>
+**Property naming:** Data attributes are automatically converted from kebab-case to camelCase. For example, `data-button-text` becomes `{ buttonText: "value" }` in the tracked event.
+</Info>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use Descriptive Names" icon="tag">
+    Choose event names that clearly describe the action: `purchase_completed` instead of `purchase`, `signup_started` instead of `click`.
+  </Card>
+
+  <Card title="Keep Properties Simple" icon="list">
+    Use primitive types (strings, numbers, booleans) for properties. Avoid nested objects or arrays.
+  </Card>
+
+  <Card title="Be Consistent" icon="arrows-rotate">
+    Use snake_case for event names and camelCase for property keys throughout your application.
+  </Card>
+
+  <Card title="Track Intent, Not Just Actions" icon="bullseye">
+    Capture why users performed an action, not just what they did. Include context like location, source, or variant.
+  </Card>
+</CardGroup>
+
+## Event Batching
+
+Events are automatically batched to reduce network overhead. The tracker queues events and sends them in groups.
+
+**Default Configuration:**
+- **Batch size:** 10 events
+- **Batch timeout:** 5000ms (5 seconds)
+- **Batching enabled:** Yes
+
+Events are sent when either the batch size is reached or the timeout expires, whichever comes first.
+
+### Manual Flush
+
+Force immediate delivery of all queued events:
+
+```typescript
+import { track, flush } from '@databuddy/sdk';
+
+function handleExternalLink(url: string) {
+  track('external_link_clicked', { url });
+  flush(); // Ensure event is sent before navigation
+  window.location.href = url;
+}
+```
+
+See [session management functions](/tracking/sessions#session-management-functions) for more details.
+
+## Advanced Usage
+
+### Global Event Properties
+
+Set properties that will be attached to all future events:
+
+```typescript
+if (typeof window !== 'undefined') {
+  window.databuddy?.setGlobalProperties({
+    plan: 'enterprise',
+    abTestVariant: 'checkout-v2',
+    region: 'us-west'
+  });
+}
+```
+
+Global properties are useful for:
+- User plan or tier
+- A/B test variants
+- Feature flags
+- Region or locale
+
+### Conditional Tracking
+
+```typescript
+import { isTrackerAvailable, track } from '@databuddy/sdk';
+
+// Check if tracker is loaded
+if (isTrackerAvailable()) {
+  track('feature_used', { feature: 'export' });
+}
+```
+
+### Type-Safe Tracking
+
+Define event types for better autocomplete and type safety:
+
+```typescript
+type AppEvents = {
+  purchase_completed: {
+    orderId: string;
+    total: number;
+    currency: string;
+  };
+  feature_used: {
+    feature: string;
+    timestamp?: number;
+  };
+};
+
+function trackEvent<T extends keyof AppEvents>(
+  name: T,
+  properties: AppEvents[T]
+) {
+  track(name, properties);
+}
+
+// Now you get type safety and autocomplete
+trackEvent('purchase_completed', {
+  orderId: 'order-123',
+  total: 99.99,
+  currency: 'USD'
+});
+```
+
+## Related Functions
+
+- [`flush()`](/tracking/sessions#session-management-functions) - Force send all queued events
+- [`clear()`](/tracking/sessions#session-management-functions) - Reset tracking session
+- [`trackError()`](/tracking/custom-properties#error-tracking) - Convenience wrapper for error events

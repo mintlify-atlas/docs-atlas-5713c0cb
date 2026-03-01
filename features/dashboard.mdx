@@ -1,0 +1,110 @@
+---
+title: Dashboard Overview
+description: Navigate your analytics dashboard and visualize website performance at a glance
+---
+
+The Databuddy dashboard provides a comprehensive overview of your website's analytics data. Access real-time insights, visualize trends, and monitor key metrics from a single, privacy-focused interface.
+
+## Dashboard Layout
+
+The main dashboard is organized into several key sections:
+
+### Summary Metrics
+
+View high-level statistics including:
+
+- **Total Pageviews**: Number of page loads across your website
+- **Unique Visitors**: Count of distinct visitors (identified by anonymous IDs)
+- **Bounce Rate**: Percentage of single-page sessions (site-level metric)
+- **Average Session Duration**: Mean time users spend on your site
+
+<Note>
+Bounce rate is only available at the site level. Per-page bounce rates are not calculated to maintain data accuracy.
+</Note>
+
+### Time Period Selection
+
+Switch between different time ranges to analyze your data:
+
+- Last 7 days
+- Last 30 days
+- Last 90 days
+- Custom date range
+
+The dashboard automatically recalculates all metrics when you change the time period.
+
+### Real-Time Data
+
+Databuddy processes events through a high-performance ingestion pipeline built with Kafka and ClickHouse. Your dashboard updates continuously as new data arrives.
+
+## Quick Actions
+
+From the dashboard, you can quickly:
+
+- Create and track conversion **goals**
+- Set up multi-step **funnels**
+- Generate **short links** with tracking
+- Configure **uptime monitors**
+- Ask the **AI assistant** for insights
+
+## Data Tables
+
+Interactive tables display detailed breakdowns:
+
+- **Top Pages**: Most viewed pages with visitor counts
+- **Traffic Sources**: Referrers and traffic channels
+- **Devices & Browsers**: User agent breakdown
+- **Geographic Distribution**: Country and region data
+- **UTM Campaigns**: Campaign performance tracking
+
+Each table is sortable and includes percentage comparisons.
+
+## Charts & Visualizations
+
+The dashboard includes multiple chart types:
+
+- **Line charts** for traffic trends over time
+- **Bar charts** for comparing page performance
+- **Pie/donut charts** for device and browser distribution
+- **Geographic maps** showing visitor locations with country overlays
+
+<Tip>
+Use the chart export feature to download visualizations for reports and presentations.
+</Tip>
+
+## Filtering Data
+
+Apply filters to narrow your analysis:
+
+1. Click the filter icon in the toolbar
+2. Choose filter criteria (country, device, referrer, etc.)
+3. Select operators (equals, contains, not equals)
+4. Apply multiple filters for advanced segmentation
+
+Filters apply across all dashboard widgets simultaneously.
+
+## Keyboard Shortcuts
+
+Speed up your workflow with keyboard shortcuts:
+
+- `Cmd/Ctrl + K` - Open command palette
+- `D` - Toggle date picker
+- `F` - Open filter dialog
+- `A` - Open AI assistant
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Analytics" icon="chart-line" href="/features/analytics">
+    Dive deeper into visitor behavior and traffic analysis
+  </Card>
+  <Card title="Goals" icon="bullseye" href="/features/goals">
+    Track conversions and measure success
+  </Card>
+  <Card title="AI Insights" icon="sparkles" href="/features/ai-insights">
+    Ask questions and get automated insights
+  </Card>
+  <Card title="Feature Flags" icon="flag" href="/features/feature-flags">
+    Control feature rollouts with flags
+  </Card>
+</CardGroup>

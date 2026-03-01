@@ -1,0 +1,288 @@
+---
+title: Goals
+description: Track conversions and measure success with single-step goal tracking
+---
+
+Goals help you measure conversions and track important user actions on your website. Set up goals for newsletter signups, purchases, form submissions, or any other single-step conversion event.
+
+## What are Goals?
+
+A goal represents a single conversion event you want to track. When a user completes the goal (views a specific page or triggers a custom event), Databuddy records the conversion.
+
+**Use goals for:**
+
+- Newsletter signups
+- Purchase completions
+- Form submissions
+- Downloads
+- Video plays
+- Any single-step conversion
+
+<Info>
+For multi-step conversion paths (e.g., signup flow, checkout process), use [Funnels](/features/funnels) instead.
+</Info>
+
+## Goal Types
+
+### Page View Goals
+
+Track when users visit a specific page:
+
+- **Target**: Page path (e.g., `/thank-you`, `/checkout/complete`)
+- **Example**: Thank you page after form submission
+- **Use case**: Track successful form completions by targeting the confirmation page
+
+### Event Goals
+
+Track custom events sent from your website:
+
+- **Target**: Event name (e.g., `purchase_complete`, `newsletter_signup`)
+- **Example**: Tracking a checkout completion event
+- **Use case**: Track interactions that don't require a page change
+
+<Tip>
+Event goals require you to send custom events using the Databuddy SDK's `track()` function.
+</Tip>
+
+## Creating a Goal
+
+### Via Dashboard
+
+1. Navigate to **Goals** in the sidebar
+2. Click **Create Goal**
+3. Enter a goal name (e.g., "Newsletter Signups")
+4. Add an optional description
+5. Select the goal type (Page View or Event)
+6. Enter the target (page path or event name)
+7. Configure filters (optional)
+8. Choose whether to ignore historic data
+9. Click **Create**
+
+### Goal Fields
+
+| Field | Description | Required |
+|-------|-------------|----------|
+| Name | Goal name (1-100 characters) | Yes |
+| Description | Explanation of what this goal tracks | No |
+| Type | `PAGE_VIEW` or `EVENT` | Yes |
+| Target | Page path (e.g., `/thank-you`) or event name | Yes |
+| Filters | Additional conditions to narrow tracking | No |
+| Ignore Historic Data | Only count conversions after goal creation | No |
+
+### Example: Newsletter Signup Goal
+
+```json
+{
+  "name": "Newsletter Signup",
+  "description": "Track newsletter subscription completions",
+  "type": "EVENT",
+  "target": "newsletter_signup",
+  "ignoreHistoricData": false
+}
+```
+
+### Example: Purchase Completion Goal
+
+```json
+{
+  "name": "Purchase Complete",
+  "description": "Track successful purchases",
+  "type": "PAGE_VIEW",
+  "target": "/checkout/success",
+  "filters": [
+    {
+      "field": "utm_source",
+      "operator": "equals",
+      "value": "email"
+    }
+  ],
+  "ignoreHistoricData": false
+}
+```
+
+## Goal Filters
+
+Add filters to make goals more specific:
+
+### Available Filters
+
+- **Page/Path**: Additional path conditions
+- **Referrer**: Traffic source restrictions
+- **Country**: Geographic targeting
+- **Device Type**: Desktop, Mobile, or Tablet
+- **UTM Parameters**: Campaign-specific goals
+- **Custom Properties**: Event property values
+
+### Filter Operators
+
+- `equals`: Exact match
+- `contains`: Substring match
+- `not_equals`: Exclude match
+- `in`: Match any in list
+- `not_in`: Exclude all in list
+
+### Filter Example
+
+Track purchases only from paid ads:
+
+```json
+{
+  "name": "Paid Ad Purchases",
+  "type": "EVENT",
+  "target": "purchase_complete",
+  "filters": [
+    {
+      "field": "utm_medium",
+      "operator": "in",
+      "value": ["cpc", "ppc", "paid"]
+    }
+  ]
+}
+```
+
+## Viewing Goal Analytics
+
+### Goal Overview
+
+The goals page shows:
+
+- All configured goals
+- Active/paused status
+- Goal type and target
+- Conversion metrics
+- Creation date
+
+### Goal Metrics
+
+For each goal, view:
+
+- **Total Users Entered**: Users who could potentially convert
+- **Total Users Completed**: Users who achieved the goal
+- **Conversion Rate**: Percentage of users who converted
+- **Trend**: Conversion rate over time
+
+### Date Range Selection
+
+Analyze goal performance over different periods:
+
+1. Open a goal's detail page
+2. Select a date range (last 7/30/90 days or custom)
+3. View conversion metrics for that period
+
+<Note>
+Goal analytics update in real-time as new conversions are tracked.
+</Note>
+
+## Managing Goals
+
+### Editing a Goal
+
+1. Click a goal from the goals list
+2. Click **Edit**
+3. Modify any field (name, description, type, target, filters)
+4. Click **Save**
+
+<Warning>
+Changing a goal's type or target will reset its conversion history. Consider creating a new goal instead.
+</Warning>
+
+### Pausing a Goal
+
+Temporarily stop tracking a goal:
+
+1. Open the goal's detail page
+2. Toggle **Active** to off
+3. The goal will stop recording new conversions
+
+Paused goals retain historical data.
+
+### Deleting a Goal
+
+Permanently remove a goal:
+
+1. Open the goal's detail page
+2. Click **Delete**
+3. Confirm deletion
+
+<Warning>
+Deleting a goal permanently removes all associated analytics data. This action cannot be undone.
+</Warning>
+
+## Historic Data
+
+By default, goals analyze all available data including events before the goal was created.
+
+### Ignoring Historic Data
+
+Enable "Ignore Historic Data" to:
+
+- Only count conversions after goal creation
+- Avoid skewed metrics from past events
+- Track incremental improvements
+
+This is useful when launching new campaigns or testing changes.
+
+## Best Practices
+
+### Naming Conventions
+
+Use clear, descriptive names:
+
+- Good: "Newsletter Signup - Footer Form"
+- Bad: "Goal 1"
+
+### Use Descriptions
+
+Document what each goal tracks and why:
+
+```
+"Tracks successful purchases from email campaigns to measure email marketing ROI"
+```
+
+### Segment with Filters
+
+Create separate goals for different segments:
+
+- "Mobile Purchases" (device_type = mobile)
+- "US Newsletter Signups" (country = US)
+- "Organic Conversions" (utm_source = organic)
+
+### Monitor Regularly
+
+Review goal performance weekly:
+
+- Check conversion rates
+- Identify trends
+- Compare periods
+
+## Integration with AI Insights
+
+Use the AI assistant to analyze goals:
+
+**Example queries:**
+
+- "Show me all my goals"
+- "What's the conversion rate for newsletter signups?"
+- "Create a goal for purchase completions"
+- "How are my goals performing this month?"
+
+<Tip>
+The AI assistant can help you create, analyze, and optimize goals through natural language.
+</Tip>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Funnels" icon="filter" href="/features/funnels">
+    Track multi-step conversion paths
+  </Card>
+  <Card title="Analytics" icon="chart-line" href="/features/analytics">
+    View detailed traffic analytics
+  </Card>
+  <Card title="AI Insights" icon="sparkles" href="/features/ai-insights">
+    Ask the AI about your goals
+  </Card>
+  <Card title="Dashboard" icon="gauge" href="/features/dashboard">
+    Return to dashboard overview
+  </Card>
+</CardGroup>

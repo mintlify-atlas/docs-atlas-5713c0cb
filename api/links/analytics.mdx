@@ -1,0 +1,111 @@
+---
+title: 'Link Analytics'
+description: 'Query click analytics for short links'
+---
+
+## Overview
+
+Link analytics are tracked automatically when visitors click your short links. Analytics include:
+
+- Click counts
+- Geographic location (country, city)
+- Device type (desktop, mobile, tablet)
+- Browser and OS
+- Referrer source
+- Unique visitors vs. total clicks
+
+## Querying Link Analytics
+
+Use the standard analytics query endpoints with link-specific filters:
+
+```bash
+curl -X POST https://api.databuddy.cc/analytics/query \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "websiteId": "org_abc123",
+    "metric": "clicks",
+    "dateFrom": "2024-02-01",
+    "dateTo": "2024-03-01",
+    "filters": {
+      "linkSlug": "launch"
+    }
+  }'
+```
+
+## Available Metrics
+
+<ResponseField name="clicks" type="number">
+  Total number of clicks
+</ResponseField>
+
+<ResponseField name="uniqueVisitors" type="number">
+  Unique visitors (based on IP hash)
+</ResponseField>
+
+<ResponseField name="conversionRate" type="number">
+  Percentage of visitors who reached target page
+</ResponseField>
+
+## Dimensions
+
+Break down link analytics by:
+
+- `country` - Geographic location
+- `device` - Device type (desktop, mobile, tablet)
+- `browser` - Browser name
+- `os` - Operating system
+- `referrer` - Traffic source
+- `date` - Time series data
+
+## Example: Top Countries
+
+```bash
+curl -X POST https://api.databuddy.cc/analytics/query \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "websiteId": "org_abc123",
+    "metric": "clicks",
+    "dimension": "country",
+    "dateFrom": "2024-02-01",
+    "dateTo": "2024-03-01",
+    "filters": {
+      "linkSlug": "launch"
+    },
+    "limit": 10
+  }'
+```
+
+## Example Response
+
+```json
+{
+  "data": [
+    {
+      "country": "US",
+      "clicks": 1250,
+      "uniqueVisitors": 890
+    },
+    {
+      "country": "GB",
+      "clicks": 432,
+      "uniqueVisitors": 301
+    },
+    {
+      "country": "CA",
+      "clicks": 298,
+      "uniqueVisitors": 215
+    }
+  ],
+  "total": 1980,
+  "period": {
+    "from": "2024-02-01T00:00:00Z",
+    "to": "2024-03-01T23:59:59Z"
+  }
+}
+```
+
+## Real-time Analytics
+
+Click events are typically available in analytics within 60 seconds of the click occurring.

@@ -1,0 +1,484 @@
+---
+title: Webhooks
+description: Set up webhooks to integrate Databuddy with payment providers and external services
+---
+
+## Overview
+
+Databuddy supports webhooks for real-time event processing and integrations. You can:
+
+- Automatically track revenue from Stripe and Paddle payments
+- Receive real-time notifications about events
+- Integrate with external systems
+
+## Payment provider webhooks
+
+Databuddy provides first-class support for payment provider webhooks, automatically capturing revenue events and linking them to your analytics data.
+
+### Stripe webhooks
+
+Integrate Stripe to automatically track:
+
+- Payment intents (succeeded/failed/canceled)
+- Invoices (paid/failed)
+- Subscriptions (created/updated/canceled/paused/resumed)
+- Refunds
+
+<Steps>
+  <Step title="Get your webhook URL">
+    1. Navigate to your Databuddy dashboard
+    2. Go to Settings → Revenue Tracking
+    3. Select "Stripe" as your payment provider
+    4. Copy your webhook URL (format: `https://basket.databuddy.cc/webhooks/stripe/{hash}`)
+  </Step>
+
+  <Step title="Create webhook in Stripe">
+    1. Go to [Stripe Dashboard → Webhooks](https://dashboard.stripe.com/webhooks)
+    2. Click "Add endpoint"
+    3. Paste your Databuddy webhook URL
+    4. Select events to listen for:
+       - `payment_intent.succeeded`
+       - `payment_intent.payment_failed`
+       - `payment_intent.canceled`
+       - `invoice.paid`
+       - `invoice.payment_failed`
+       - `customer.subscription.created`
+       - `customer.subscription.updated`
+       - `customer.subscription.deleted`
+       - `customer.subscription.paused`
+       - `customer.subscription.resumed`
+       - `charge.refunded`
+    5. Click "Add endpoint"
+  </Step>
+
+  <Step title="Configure webhook secret">
+    1. Copy the webhook signing secret from Stripe
+    2. Paste it into Databuddy Settings → Revenue Tracking → Stripe Webhook Secret
+    3. Save your configuration
+  </Step>
+
+  <Step title="Test the webhook">
+    Stripe provides a test mode for webhooks:
+
+    1. In Stripe Dashboard, go to your webhook endpoint
+    2. Click "Send test webhook"
+    3. Select `payment_intent.succeeded`
+    4. Verify the event appears in Databuddy → Revenue
+  </Step>
+</Steps>
+
+#### Linking Stripe payments to analytics
+
+To connect Stripe payments with your website visitors, pass Databuddy tracking IDs in Stripe metadata:
+
+```tsx
+import { getTrackingIds } from '@databuddy/sdk';
+import Stripe from 'stripe';
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
+// Get Databuddy tracking IDs
+const { anonId, sessionId } = getTrackingIds();
+
+// Create payment with Databuddy metadata
+const paymentIntent = await stripe.paymentIntents.create({
+  amount: 2999,
+  currency: 'usd',
+  metadata: {
+    // Databuddy will automatically detect these fields
+    databuddy_anonymous_id: anonId,
+    databuddy_session_id: sessionId,
+    databuddy_client_id: process.env.NEXT_PUBLIC_DATABUDDY_CLIENT_ID,
+  },
+});
+```
+
+Now your revenue will be attributed to the correct user sessions in Databuddy.
+
+#### Stripe webhook events
+
+Databuddy processes these Stripe events:
+
+<AccordionGroup>
+  <Accordion title="payment_intent.succeeded">
+    Tracks successful payments as revenue events.
+
+    **Data captured:**
+    - Transaction ID
+    - Amount and currency
+    - Customer ID
+    - Product description
+    - Type (sale or subscription)
+    - Databuddy tracking IDs (if provided in metadata)
+  </Accordion>
+
+  <Accordion title="payment_intent.payment_failed / canceled">
+    Records failed or canceled payments for analysis.
+
+    Useful for:
+    - Identifying payment friction
+    - Tracking decline rates
+    - Understanding abandonment
+  </Accordion>
+
+  <Accordion title="invoice.paid">
+    Tracks subscription renewals and recurring payments.
+
+    **Note:** If the invoice has a `payment_intent`, Databuddy will skip it to avoid double-counting (the `payment_intent.succeeded` event is used instead).
+  </Accordion>
+
+  <Accordion title="customer.subscription.*">
+    Tracks subscription lifecycle events:
+    - Created: New subscription started
+    - Updated: Plan changed or subscription modified
+    - Deleted: Subscription canceled
+    - Paused: Subscription paused
+    - Resumed: Subscription resumed
+
+    These events have `amount: 0` but include metadata about the subscription status.
+  </Accordion>
+
+  <Accordion title="charge.refunded">
+    Records refunds as negative revenue.
+
+    Each refund is tracked separately with:
+    - Negative amount
+    - Status: `refunded`
+    - Original transaction reference
+  </Accordion>
+</AccordionGroup>
+
+### Paddle webhooks
+
+Databuddy also supports Paddle for payment processing:
+
+<Steps>
+  <Step title="Get your webhook URL">
+    1. Go to Databuddy Settings → Revenue Tracking
+    2. Select "Paddle" as your payment provider
+    3. Copy your webhook URL (format: `https://basket.databuddy.cc/webhooks/paddle/{hash}`)
+  </Step>
+
+  <Step title="Configure Paddle webhook">
+    1. Go to [Paddle Dashboard → Notifications](https://vendors.paddle.com/notifications)
+    2. Add your Databuddy webhook URL
+    3. Select events:
+       - `transaction.completed`
+       - `transaction.billed`
+    4. Save the webhook
+  </Step>
+
+  <Step title="Add webhook secret">
+    1. Copy the webhook secret from Paddle
+    2. Paste it into Databuddy Settings → Revenue Tracking → Paddle Webhook Secret
+    3. Save configuration
+  </Step>
+</Steps>
+
+#### Linking Paddle payments to analytics
+
+Pass Databuddy IDs in Paddle custom data:
+
+```tsx
+import { getTrackingIds } from '@databuddy/sdk';
+
+const { anonId, sessionId } = getTrackingIds();
+
+// In your Paddle checkout
+Paddle.Checkout.open({
+  product: 12345,
+  customData: {
+    anonymous_id: anonId,
+    session_id: sessionId,
+    website_id: process.env.NEXT_PUBLIC_DATABUDDY_CLIENT_ID,
+  },
+});
+```
+
+## Custom webhooks
+
+You can also set up custom webhooks to receive Databuddy events in your own systems.
+
+### Webhook configuration
+
+Use the webhook provider from the notifications package:
+
+```typescript
+import { WebhookProvider } from '@databuddy/notifications/providers';
+
+const webhook = new WebhookProvider({
+  url: 'https://your-app.com/webhooks/databuddy',
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer your-secret-token',
+    'X-Custom-Header': 'value'
+  },
+  timeout: 5000,
+  retries: 3,
+  retryDelay: 1000,
+  // Transform payload before sending
+  transformPayload: (payload) => ({
+    event: payload.type,
+    data: payload.data,
+    timestamp: new Date().toISOString()
+  })
+});
+
+// Send a notification
+await webhook.send({
+  type: 'event.tracked',
+  data: {
+    event_name: 'purchase',
+    amount: 99.99,
+    user_id: 'user_123'
+  }
+});
+```
+
+### Webhook payload structure
+
+Databuddy webhooks send JSON payloads:
+
+```json
+{
+  "type": "event.tracked",
+  "data": {
+    "event_name": "purchase",
+    "properties": {
+      "amount": 99.99,
+      "currency": "USD",
+      "product_id": "sku_123"
+    },
+    "anonymous_id": "anon_abc123",
+    "session_id": "session_xyz789",
+    "timestamp": "2026-03-01T12:00:00.000Z"
+  },
+  "website_id": "your-website-id",
+  "created_at": "2026-03-01T12:00:00.123Z"
+}
+```
+
+### Webhook security
+
+Databuddy webhooks include signature verification:
+
+#### Stripe signature verification
+
+Stripe webhooks use HMAC SHA256 signatures with timestamp validation:
+
+```typescript
+import { createHmac, timingSafeEqual } from 'crypto';
+
+function verifyStripeWebhook(
+  payload: string,
+  signature: string,
+  secret: string
+): boolean {
+  const elements = signature.split(',');
+  const timestamp = elements.find(e => e.startsWith('t='))?.slice(2);
+  const sig = elements.find(e => e.startsWith('v1='))?.slice(3);
+
+  if (!timestamp || !sig) return false;
+
+  // Verify timestamp (within 5 minutes)
+  const now = Math.floor(Date.now() / 1000);
+  if (Math.abs(now - parseInt(timestamp)) > 300) return false;
+
+  // Verify signature
+  const signedPayload = `${timestamp}.${payload}`;
+  const expected = createHmac('sha256', secret)
+    .update(signedPayload, 'utf8')
+    .digest('hex');
+
+  return timingSafeEqual(Buffer.from(expected), Buffer.from(sig));
+}
+
+// In your webhook endpoint
+export async function POST(request: Request) {
+  const signature = request.headers.get('stripe-signature');
+  const payload = await request.text();
+
+  if (!verifyStripeWebhook(payload, signature, WEBHOOK_SECRET)) {
+    return new Response('Invalid signature', { status: 401 });
+  }
+
+  // Process webhook...
+}
+```
+
+#### Paddle signature verification
+
+Paddle uses HMAC SHA256 verification:
+
+```typescript
+async function verifyPaddleWebhook(
+  payload: string,
+  signature: string,
+  secret: string
+): Promise<boolean> {
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+
+  const sig = await crypto.subtle.sign(
+    'HMAC',
+    key,
+    encoder.encode(payload)
+  );
+
+  const expected = Array.from(new Uint8Array(sig))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+
+  return signature === expected;
+}
+
+// In your webhook endpoint
+export async function POST(request: Request) {
+  const signature = request.headers.get('paddle-signature');
+  const payload = await request.text();
+
+  if (!await verifyPaddleWebhook(payload, signature, WEBHOOK_SECRET)) {
+    return new Response('Invalid signature', { status: 401 });
+  }
+
+  // Process webhook...
+}
+```
+
+## Webhook best practices
+
+<AccordionGroup>
+  <Accordion title="Always verify signatures">
+    Never process webhooks without signature verification. This prevents:
+    - Spoofed webhook requests
+    - Replay attacks
+    - Unauthorized data access
+
+    Both Stripe and Paddle provide signature verification mechanisms.
+  </Accordion>
+
+  <Accordion title="Handle retries gracefully">
+    Payment providers will retry failed webhooks. Make your endpoint idempotent:
+
+    ```typescript
+    // Store processed webhook IDs to prevent duplicates
+    const processedWebhooks = new Set<string>();
+
+    export async function POST(request: Request) {
+      const event = await request.json();
+
+      if (processedWebhooks.has(event.id)) {
+        return new Response('Already processed', { status: 200 });
+      }
+
+      // Process webhook...
+      processedWebhooks.add(event.id);
+
+      return new Response('OK', { status: 200 });
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Respond quickly">
+    Webhook endpoints should respond within 5 seconds. For long-running tasks:
+
+    ```typescript
+    export async function POST(request: Request) {
+      const payload = await request.json();
+
+      // Queue for background processing
+      await queue.add('process-webhook', payload);
+
+      // Respond immediately
+      return new Response('Accepted', { status: 202 });
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Log webhook events">
+    Keep logs of all webhook events for debugging:
+
+    ```typescript
+    export async function POST(request: Request) {
+      const payload = await request.text();
+
+      logger.info({
+        type: 'webhook_received',
+        provider: 'stripe',
+        event_id: event.id,
+        event_type: event.type
+      });
+
+      // Process webhook...
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Test in development">
+    Use Stripe CLI or Paddle sandbox for local testing:
+
+    ```bash
+    # Stripe CLI
+    stripe listen --forward-to localhost:3000/webhooks/stripe
+
+    # Test a specific event
+    stripe trigger payment_intent.succeeded
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting webhooks
+
+<AccordionGroup>
+  <Accordion title="Webhook not receiving events">
+    1. Verify the webhook URL is correct in your payment provider dashboard
+    2. Check that your webhook endpoint is publicly accessible
+    3. Ensure your server is returning 2xx status codes
+    4. Check payment provider logs for delivery attempts
+  </Accordion>
+
+  <Accordion title="Signature verification failing">
+    1. Verify you're using the correct webhook secret
+    2. Check that you're reading the raw request body (not parsed JSON)
+    3. Ensure timestamp tolerance isn't too strict
+    4. Look for extra whitespace or encoding issues
+  </Accordion>
+
+  <Accordion title="Events not appearing in Databuddy">
+    1. Verify the webhook secret is configured in Databuddy settings
+    2. Check that you're passing the correct metadata fields
+    3. Ensure the website ID matches your Databuddy project
+    4. Check Databuddy logs for webhook processing errors
+  </Accordion>
+
+  <Accordion title="Duplicate events">
+    Payment providers retry failed webhooks. Implement idempotency:
+    
+    - Store processed event IDs in a database
+    - Use the event ID as an idempotency key
+    - Return 200 for already-processed events
+  </Accordion>
+</AccordionGroup>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Custom Dashboards" icon="chart-line" href="/guides/custom-dashboards">
+    Visualize your revenue data
+  </Card>
+  <Card title="Troubleshooting" icon="wrench" href="/guides/troubleshooting">
+    Debug webhook issues
+  </Card>
+  <Card title="API Reference" icon="code" href="/api-reference">
+    Full SDK documentation
+  </Card>
+  <Card title="Migration Guide" icon="arrow-right-arrow-left" href="/guides/migrating-from-ga">
+    Switch from Google Analytics
+  </Card>
+</CardGroup>

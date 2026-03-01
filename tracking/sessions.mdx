@@ -1,0 +1,466 @@
+---
+title: Sessions
+description: Session lifecycle, expiration, and management
+---
+
+## Overview
+
+A session represents a single browsing session on your site. Sessions help you understand how users interact with your site during a specific visit, including how long they stay, how many pages they view, and when they leave.
+
+## Session Lifecycle
+
+### Creation
+
+A new session is automatically created when:
+
+1. A user visits your site for the first time
+2. A user returns after 30+ minutes of inactivity
+3. A user closes their browser tab and opens a new one
+4. The `clear()` function is called
+
+### Format
+
+Session IDs use the format:
+
+```
+sess_[uuid]
+```
+
+Example: `sess_7c9e6679-7425-40de-944b-e07fc1f90ae7`
+
+### Storage
+
+Sessions are stored in `sessionStorage` with the following keys:
+
+<ResponseField name="did_session" type="string">
+  The session ID itself.
+  Example: `"sess_7c9e6679-7425-40de-944b-e07fc1f90ae7"`
+</ResponseField>
+
+<ResponseField name="did_session_timestamp" type="string">
+  Last activity timestamp in milliseconds. Updated on every pageview.
+  Example: `"1709318400000"`
+</ResponseField>
+
+<ResponseField name="did_session_start" type="string">
+  Session creation timestamp in milliseconds.
+  Example: `"1709318400000"`
+</ResponseField>
+
+## Session Expiration
+
+### Inactivity Timeout
+
+Sessions expire after **30 minutes of inactivity**. The inactivity timer resets on every pageview.
+
+**How it works:**
+
+1. User views a page - `did_session_timestamp` is updated
+2. User views another page 10 minutes later - timestamp updated again
+3. User is inactive for 30 minutes - session expires
+4. User returns - new session is created
+
+**Source code reference:** `/home/daytona/workspace/source/packages/tracker/src/core/tracker.ts:188-189`
+
+```typescript
+const sessionAge = Date.now() - Number.parseInt(sessionTimestamp, 10);
+if (sessionAge < 30 * 60 * 1000) { // 30 minutes in milliseconds
+  // Session is still valid
+  sessionStorage.setItem("did_session_timestamp", Date.now().toString());
+  return storedId;
+}
+```
+
+### Manual Expiration
+
+You can manually expire a session by calling `clear()`:
+
+```typescript
+import { clear } from '@databuddy/sdk';
+
+// End current session and start fresh
+clear();
+```
+
+### Tab Closure
+
+Since sessions are stored in `sessionStorage`, they automatically expire when the user:
+
+- Closes the browser tab
+- Closes the browser window
+- Navigates to a different domain (unless using cross-domain tracking)
+
+<Note>
+Opening the same site in a new tab creates a **separate session**. Each tab maintains its own `sessionStorage`.
+</Note>
+
+## Session Metrics
+
+Databuddy automatically tracks session-level metrics:
+
+### Page Count
+
+The number of pages viewed in the current session:
+
+```typescript
+const tracker = getTracker();
+console.log('Pages viewed:', tracker?.pageCount);
+```
+
+This is included in all `screen_view` and `page_exit` events:
+
+```typescript
+{
+  name: 'screen_view',
+  page_count: 3,  // This is the 3rd page in the session
+  // ... other properties
+}
+```
+
+### Session Start Time
+
+The timestamp when the session was created:
+
+```typescript
+const tracker = getTracker();
+console.log('Session started at:', new Date(tracker?.sessionStartTime));
+```
+
+### Time on Page
+
+Calculated for each `page_exit` event:
+
+```typescript
+{
+  name: 'page_exit',
+  time_on_page: 45,  // seconds
+  scroll_depth: 75,
+  interaction_count: 3
+}
+```
+
+### Engaged Time
+
+Databuddy tracks actual engagement time by monitoring visibility and focus:
+
+```typescript
+const tracker = getTracker();
+
+if (tracker) {
+  // Get engaged time in milliseconds
+  const engagedMs = tracker.getEngagedTime();
+  
+  // Get engaged time in seconds
+  const engagedSec = tracker.getEngagedTimeSeconds();
+  
+  console.log(`User has been engaged for ${engagedSec} seconds`);
+}
+```
+
+**What counts as engaged:**
+- Page is visible (not in background tab)
+- Browser window has focus
+- Automatically pauses when user switches tabs
+
+## Session Management Functions
+
+### getSessionId()
+
+Retrieve the current session ID:
+
+```typescript
+import { getSessionId } from '@databuddy/sdk';
+
+const sessionId = getSessionId();
+console.log('Current session:', sessionId);
+// Output: sess_7c9e6679-7425-40de-944b-e07fc1f90ae7
+```
+
+#### With URL Parameters
+
+Check URL parameters first (for cross-domain tracking):
+
+```typescript
+import { getSessionId } from '@databuddy/sdk';
+
+const urlParams = new URLSearchParams(window.location.search);
+const sessionId = getSessionId(urlParams);
+```
+
+See [User Identification](/tracking/user-identification#cross-domain-tracking) for cross-domain tracking details.
+
+### clear()
+
+Reset the current session and create new identifiers:
+
+```typescript
+import { clear } from '@databuddy/sdk';
+
+function handleLogout() {
+  // Clear session and generate new IDs
+  clear();
+}
+```
+
+**What `clear()` does:**
+
+1. Removes all tracking data from storage
+2. Generates new anonymous ID
+3. Generates new session ID
+4. Resets page count to 0
+5. Resets engagement metrics
+6. Clears global properties
+
+**Source code reference:** `/home/daytona/workspace/source/packages/tracker/src/index.ts:329-346`
+
+```typescript
+clear() {
+  this.globalProperties = {};
+  if (!this.isServer()) {
+    try {
+      localStorage.removeItem("did");
+      sessionStorage.removeItem("did_session");
+      sessionStorage.removeItem("did_session_timestamp");
+      sessionStorage.removeItem("did_session_start");
+    } catch {}
+  }
+  this.anonymousId = this.generateAnonymousId();
+  this.sessionId = this.generateSessionId();
+  this.sessionStartTime = Date.now();
+  this.pageCount = 0;
+  this.lastPath = "";
+  this.interactionCount = 0;
+  this.maxScrollDepth = 0;
+}
+```
+
+<Warning>
+Calling `clear()` creates new identifiers, breaking the link between past and future events. Only use this when you explicitly want to reset tracking state (e.g., after user logout).
+</Warning>
+
+### flush()
+
+Force immediate delivery of all queued events:
+
+```typescript
+import { flush } from '@databuddy/sdk';
+
+function handleNavigation(url: string) {
+  flush(); // Ensure all events are sent
+  window.location.href = url;
+}
+```
+
+**When to use `flush()`:**
+- Before navigation to external sites
+- Before closing a modal or overlay
+- After critical events that must be captured
+
+**Source code reference:** `/home/daytona/workspace/source/packages/sdk/src/core/tracker.ts:159-175`
+
+```typescript
+export function flush(): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const tracker = window.db?.flush || window.databuddy?.flush;
+
+  if (!tracker) {
+    return;
+  }
+
+  try {
+    tracker();
+  } catch (error) {
+    console.error("Databuddy flush error:", error);
+  }
+}
+```
+
+## Event Batching
+
+To optimize network usage, Databuddy batches events before sending them to the server.
+
+### Default Configuration
+
+<ResponseField name="enableBatching" type="boolean" default={true}>
+  Enable or disable event batching.
+</ResponseField>
+
+<ResponseField name="batchSize" type="number" default={10}>
+  Number of events to batch before sending. Min: 1, Max: 50.
+</ResponseField>
+
+<ResponseField name="batchTimeout" type="number" default={5000}>
+  Batch timeout in milliseconds. Min: 100, Max: 30000.
+</ResponseField>
+
+Events are sent when either condition is met:
+1. Batch reaches `batchSize` events
+2. `batchTimeout` milliseconds have elapsed since first event in batch
+
+### Custom Batching Configuration
+
+```tsx
+import Databuddy from '@databuddy/sdk/react';
+
+export default function App() {
+  return (
+    <Databuddy
+      clientId="your-client-id"
+      enableBatching={true}
+      batchSize={20}      // Send after 20 events
+      batchTimeout={3000} // Or after 3 seconds
+    >
+      {children}
+    </Databuddy>
+  );
+}
+```
+
+### Disable Batching
+
+```tsx
+import Databuddy from '@databuddy/sdk/react';
+
+export default function App() {
+  return (
+    <Databuddy
+      clientId="your-client-id"
+      enableBatching={false} // Send events immediately
+    >
+      {children}
+    </Databuddy>
+  );
+}
+```
+
+<Warning>
+Disabling batching increases network requests and may impact performance. Only disable if you need real-time event delivery.
+</Warning>
+
+## Session-Based Analysis
+
+### Track Session Duration
+
+```typescript
+import { getTracker } from '@databuddy/sdk';
+
+function getSessionDuration() {
+  const tracker = getTracker();
+  
+  if (!tracker) return 0;
+  
+  const duration = Date.now() - tracker.sessionStartTime;
+  return Math.floor(duration / 1000); // Convert to seconds
+}
+
+// Use in analytics
+track('session_milestone', {
+  duration: getSessionDuration(),
+  pageCount: tracker?.pageCount
+});
+```
+
+### Session Abandonment
+
+Detect when users abandon a flow:
+
+```typescript
+import { getSessionId, track } from '@databuddy/sdk';
+
+let checkoutStartSessionId: string | null = null;
+
+function startCheckout() {
+  checkoutStartSessionId = getSessionId();
+  track('checkout_started');
+}
+
+function completeCheckout() {
+  const currentSessionId = getSessionId();
+  
+  track('checkout_completed', {
+    sameSession: currentSessionId === checkoutStartSessionId
+  });
+}
+```
+
+### Multi-Tab Detection
+
+```typescript
+import { getSessionId } from '@databuddy/sdk';
+
+// Store session ID when page loads
+const initialSessionId = getSessionId();
+
+// Later, check if user opened a new tab
+window.addEventListener('focus', () => {
+  const currentSessionId = getSessionId();
+  
+  if (currentSessionId !== initialSessionId) {
+    track('new_tab_opened', {
+      originalSession: initialSessionId,
+      newSession: currentSessionId
+    });
+  }
+});
+```
+
+## Back/Forward Cache (bfcache)
+
+Modern browsers use back/forward cache to instantly restore pages when users click the back button. Databuddy handles this automatically:
+
+1. Detects when a page is restored from bfcache
+2. Checks if session has expired (30 minutes)
+3. Generates new session ID if needed
+4. Tracks a `screen_view` event with special property
+
+**Source code reference:** `/home/daytona/workspace/source/packages/tracker/src/index.ts:233-251`
+
+```typescript
+private handleBfCacheRestore() {
+  this.hasSentExitBeacon = false;
+  this.resetEngagement();
+  this.startEngagement();
+
+  const sessionTimestamp = sessionStorage.getItem("did_session_timestamp");
+  if (sessionTimestamp) {
+    const sessionAge = Date.now() - Number.parseInt(sessionTimestamp, 10);
+    if (sessionAge >= 30 * 60 * 1000) {
+      // Session expired - generate new one
+      this.sessionId = this.generateSessionId();
+      sessionStorage.setItem("did_session", this.sessionId);
+      sessionStorage.setItem("did_session_timestamp", Date.now().toString());
+    }
+  }
+
+  this.screenView({ navigation_type: "back_forward_cache" });
+}
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Session Boundaries" icon="timeline">
+    Use `clear()` to mark logical session boundaries like user logout. Don't call it unnecessarily.
+  </Card>
+
+  <Card title="Flush Critical Events" icon="bolt">
+    Call `flush()` before navigation to external sites or critical user actions to ensure events are captured.
+  </Card>
+
+  <Card title="Monitor Session Length" icon="clock">
+    Track session duration metrics to understand user engagement patterns.
+  </Card>
+
+  <Card title="Cross-Domain Continuity" icon="link">
+    Use tracking parameters when linking between your domains to maintain session continuity.
+  </Card>
+</CardGroup>
+
+## Related Documentation
+
+- [User Identification](/tracking/user-identification) - Anonymous and session IDs
+- [Pageview Tracking](/tracking/pageviews) - Automatic pageview detection
+- [Custom Events](/tracking/events) - Track user interactions

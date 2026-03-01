@@ -1,0 +1,140 @@
+---
+title: 'Uptime Monitors'
+api: 'POST /uptime/monitors/create'
+description: 'Create and manage uptime monitoring schedules'
+---
+
+## Overview
+
+Uptime monitoring checks your endpoints at regular intervals and tracks:
+
+- HTTP status codes
+- Response time (TTFB and total)
+- SSL certificate validity and expiration
+- Uptime percentage
+- Incident history
+
+## Create Monitor
+
+Creates a new uptime monitoring schedule.
+
+### Request Body
+
+<ParamField body="websiteId" type="string" required>
+  Website ID to associate monitor with
+</ParamField>
+
+<ParamField body="url" type="string" required>
+  URL to monitor (must be absolute HTTP/HTTPS URL)
+</ParamField>
+
+<ParamField body="interval" type="string" required>
+  Check interval: `1m`, `5m`, `15m`, `30m`, `1h`, `6h`, `12h`, `24h`
+</ParamField>
+
+<ParamField body="timeout" type="number">
+  Request timeout in milliseconds (default: 30000)
+</ParamField>
+
+<ParamField body="cacheBust" type="boolean">
+  Add cache-busting query parameter to requests (default: false)
+</ParamField>
+
+<ParamField body="jsonParsingConfig" type="object">
+  JSON response parsing configuration for validating API responses
+</ParamField>
+
+### Example Request
+
+```bash
+curl -X POST https://api.databuddy.cc/uptime/monitors/create \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "websiteId": "web_xyz789",
+    "url": "https://example.com",
+    "interval": "5m",
+    "timeout": 10000,
+    "cacheBust": true
+  }'
+```
+
+### Response
+
+<ResponseField name="id" type="string">
+  Monitor schedule ID
+</ResponseField>
+
+<ResponseField name="websiteId" type="string">
+  Associated website ID
+</ResponseField>
+
+<ResponseField name="url" type="string">
+  Monitored URL
+</ResponseField>
+
+<ResponseField name="interval" type="string">
+  Check interval
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Monitor status: `active`, `paused`, or `stopped`
+</ResponseField>
+
+<ResponseField name="createdAt" type="string">
+  ISO 8601 timestamp of creation
+</ResponseField>
+
+```json
+{
+  "id": "sched_abc123",
+  "websiteId": "web_xyz789",
+  "url": "https://example.com",
+  "interval": "5m",
+  "timeout": 10000,
+  "cacheBust": true,
+  "status": "active",
+  "createdAt": "2024-03-01T17:30:00Z"
+}
+```
+
+## List Monitors
+
+Retrieve all uptime monitors for a website.
+
+```bash
+curl -X POST https://api.databuddy.cc/uptime/monitors/list \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "websiteId": "web_xyz789"
+  }'
+```
+
+## Update Monitor
+
+Update an existing monitor's configuration.
+
+```bash
+curl -X POST https://api.databuddy.cc/uptime/monitors/update \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "sched_abc123",
+    "interval": "15m",
+    "timeout": 15000
+  }'
+```
+
+## Delete Monitor
+
+Stop and delete an uptime monitor.
+
+```bash
+curl -X POST https://api.databuddy.cc/uptime/monitors/delete \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "sched_abc123"
+  }'
+```

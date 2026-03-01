@@ -1,0 +1,444 @@
+---
+title: Docker Setup
+description: Deploy Databuddy using Docker and Docker Compose
+---
+
+## Quick Start with Docker Compose
+
+The fastest way to get Databuddy running is with Docker Compose. This will start all required services: PostgreSQL, ClickHouse, Redis, API server, and dashboard.
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/databuddy-analytics/Databuddy.git
+    cd Databuddy
+    ```
+  </Step>
+
+  <Step title="Copy environment configuration">
+    ```bash
+    cp .env.example .env
+    ```
+    
+    Edit `.env` with your configuration. See [Environment Variables](/self-hosting/environment-variables) for details.
+  </Step>
+
+  <Step title="Start services with Docker Compose">
+    ```bash
+    docker-compose up -d
+    ```
+    
+    This starts:
+    - PostgreSQL 17 on port 5432
+    - ClickHouse 25.5.1 on ports 8123, 9000
+    - Redis 7 on port 6379
+  </Step>
+
+  <Step title="Initialize databases">
+    ```bash
+    # Run PostgreSQL migrations
+    bun run db:migrate
+    
+    # Initialize ClickHouse schema
+    bun run clickhouse:init
+    ```
+  </Step>
+
+  <Step title="Start the application">
+    ```bash
+    # Install dependencies
+    bun install
+    
+    # Build packages
+    bun run build
+    
+    # Start API and dashboard
+    bun run start
+    ```
+    
+    The dashboard will be available at `http://localhost:3000` and the API at `http://localhost:3001`.
+  </Step>
+</Steps>
+
+<Check>
+  Your Databuddy instance is now running! Visit `http://localhost:3000` to create your first account.
+</Check>
+
+## Docker Compose Configuration
+
+Here's the complete `docker-compose.yaml` from the Databuddy repository:
+
+```yaml docker-compose.yaml
+services:
+  postgres:
+    image: postgres:17
+    container_name: databuddy-postgres
+    environment:
+      POSTGRES_DB: databuddy
+      POSTGRES_USER: databuddy
+      POSTGRES_PASSWORD: databuddy_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U databuddy -d databuddy" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:25.5.1-alpine
+    container_name: databuddy-clickhouse
+    environment:
+      CLICKHOUSE_DB: databuddy_analytics
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8123/ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: databuddy-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy noeviction
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  clickhouse_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  databuddy-network:
+    driver: bridge
+```
+
+## Production Deployment
+
+For production environments, customize the Docker Compose configuration:
+
+### Security Hardening
+
+<Steps>
+  <Step title="Change default passwords">
+    Update all database passwords in `.env` and `docker-compose.yaml`:
+    
+    ```yaml
+    environment:
+      POSTGRES_PASSWORD: your-secure-password-here
+    ```
+    
+    Generate secure passwords:
+    ```bash
+    openssl rand -base64 32
+    ```
+  </Step>
+
+  <Step title="Use secrets management">
+    For production, use Docker secrets or environment variable injection from your orchestration platform:
+    
+    ```yaml
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets:
+      - postgres_password
+    ```
+  </Step>
+
+  <Step title="Restrict network access">
+    Don't expose database ports publicly. Remove port mappings and use Docker networks:
+    
+    ```yaml
+    # Remove this in production:
+    # ports:
+    #   - "5432:5432"
+    
+    # Keep services on internal network only
+    networks:
+      - databuddy-internal
+    ```
+  </Step>
+
+  <Step title="Enable TLS/SSL">
+    Configure PostgreSQL and ClickHouse to require SSL connections. Mount SSL certificates:
+    
+    ```yaml
+    volumes:
+      - ./certs/server.crt:/var/lib/postgresql/server.crt
+      - ./certs/server.key:/var/lib/postgresql/server.key
+    command: -c ssl=on -c ssl_cert_file=/var/lib/postgresql/server.crt
+    ```
+  </Step>
+</Steps>
+
+### Resource Limits
+
+Set appropriate resource limits for each service:
+
+```yaml
+services:
+  postgres:
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
+
+  clickhouse:
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 8G
+        reservations:
+          cpus: '2'
+          memory: 4G
+
+  redis:
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+```
+
+### Data Persistence
+
+Ensure volumes are properly backed up:
+
+```yaml
+volumes:
+  postgres_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/databuddy/postgres
+  
+  clickhouse_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/databuddy/clickhouse
+```
+
+<Warning>
+  Always backup your volumes regularly. ClickHouse and PostgreSQL data is critical and should be included in your disaster recovery plan.
+</Warning>
+
+## ClickHouse-Specific Configuration
+
+For high-volume deployments, you may need additional ClickHouse configuration:
+
+```yaml clickhouse/docker-compose.yml
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:25.6
+    container_name: clickhouse
+    restart: unless-stopped
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+      - "9009:9009"
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - ./flags:/var/lib/clickhouse/flags
+    environment:
+      CLICKHOUSE_DB: default
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-defaultpass}
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8123/ping" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  clickhouse_data:
+```
+
+### File Descriptor Limits
+
+ClickHouse requires high file descriptor limits:
+
+```yaml
+ulimits:
+  nofile:
+    soft: 262144
+    hard: 262144
+```
+
+On the host system:
+
+```bash
+# Add to /etc/security/limits.conf
+* soft nofile 262144
+* hard nofile 262144
+```
+
+## Event Streaming with Redpanda (Optional)
+
+For high-scale deployments, use Redpanda for event buffering:
+
+```yaml infra/ingest/docker-compose.yml
+services:
+  redpanda:
+    image: redpandadata/redpanda:v25.2.9
+    container_name: redpanda
+    restart: unless-stopped
+    ports:
+      - "19092:19092"
+      - "9644:9644"
+    volumes:
+      - redpanda_data:/var/lib/redpanda/data
+    environment:
+      REDPANDA_LOG_LEVEL: ${REDPANDA_LOG_LEVEL:-warn}
+      REDPANDA_ADVERTISED_HOST: ${REDPANDA_ADVERTISED_HOST}
+      REDPANDA_USER: ${REDPANDA_USER}
+      REDPANDA_PASSWORD: ${REDPANDA_PASSWORD}
+    command:
+      - redpanda start
+      - --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr internal://redpanda:9092,external://${REDPANDA_ADVERTISED_HOST}:19092
+      - --pandaproxy-addr internal://0.0.0.0:8082
+      - --advertise-pandaproxy-addr internal://redpanda:8082
+      - --rpc-addr redpanda:33145
+      - --advertise-rpc-addr redpanda:33145
+    healthcheck:
+      test: [ "CMD-SHELL", "rpk cluster health" ]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    networks:
+      - databuddy
+
+volumes:
+  redpanda_data:
+
+networks:
+  databuddy:
+    name: databuddy
+    driver: bridge
+```
+
+<Info>
+  Redpanda is recommended for deployments processing 10M+ events/day. It acts as a buffer between your application and ClickHouse, providing better resilience and performance.
+</Info>
+
+## Health Checks and Monitoring
+
+All services include health checks. Monitor service status:
+
+```bash
+# Check all services
+docker-compose ps
+
+# View logs
+docker-compose logs -f
+
+# Check specific service health
+docker inspect --format='{{json .State.Health}}' databuddy-postgres
+```
+
+### Health Check Endpoints
+
+- **ClickHouse:** `http://localhost:8123/ping`
+- **PostgreSQL:** `pg_isready -U databuddy -d databuddy`
+- **Redis:** `redis-cli ping`
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="ClickHouse fails to start">
+    Check file descriptor limits:
+    
+    ```bash
+    docker exec databuddy-clickhouse sh -c 'ulimit -n'
+    ```
+    
+    Should show 262144. If not, update Docker daemon settings or system limits.
+  </Accordion>
+
+  <Accordion title="PostgreSQL connection refused">
+    Wait for PostgreSQL to be fully ready:
+    
+    ```bash
+    docker-compose logs postgres
+    ```
+    
+    Look for "database system is ready to accept connections".
+  </Accordion>
+
+  <Accordion title="Redis maxmemory errors">
+    Adjust Redis memory limits in docker-compose.yaml:
+    
+    ```yaml
+    command: redis-server --maxmemory 1gb --maxmemory-policy noeviction
+    ```
+  </Accordion>
+
+  <Accordion title="Volumes not persisting data">
+    Ensure Docker has permission to write to volume paths:
+    
+    ```bash
+    docker volume inspect databuddy_postgres_data
+    ls -la /var/lib/docker/volumes/
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Database Setup" icon="database" href="/self-hosting/database-setup">
+    Initialize your databases with the proper schema
+  </Card>
+  
+  <Card title="Environment Variables" icon="key" href="/self-hosting/environment-variables">
+    Configure authentication, API keys, and integrations
+  </Card>
+  
+  <Card title="Configuration" icon="gear" href="/self-hosting/configuration">
+    Advanced configuration options
+  </Card>
+</CardGroup>

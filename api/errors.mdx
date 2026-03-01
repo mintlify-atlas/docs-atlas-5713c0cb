@@ -1,0 +1,525 @@
+---
+title: 'Errors'
+description: 'Error codes, response formats, and troubleshooting guide'
+---
+
+## Error Response Format
+
+All Databuddy API errors follow a consistent JSON structure:
+
+```json
+{
+  "success": false,
+  "error": "Human-readable error message",
+  "code": "ERROR_CODE",
+  "requestId": "req_abc123",
+  "details": [
+    {
+      "field": "fieldName",
+      "message": "Detailed error message",
+      "suggestion": "How to fix the error"
+    }
+  ]
+}
+```
+
+<ResponseField name="success" type="boolean">
+  Always `false` for error responses
+</ResponseField>
+
+<ResponseField name="error" type="string">
+  Human-readable error message describing what went wrong
+</ResponseField>
+
+<ResponseField name="code" type="string">
+  Machine-readable error code for programmatic handling
+</ResponseField>
+
+<ResponseField name="requestId" type="string" optional>
+  Unique identifier for the request. Include this when contacting support.
+</ResponseField>
+
+<ResponseField name="details" type="array" optional>
+  Array of detailed error information, typically for validation errors
+</ResponseField>
+
+## HTTP Status Codes
+
+Databuddy uses standard HTTP status codes:
+
+<ResponseField name="200" type="OK">
+  Request succeeded
+</ResponseField>
+
+<ResponseField name="400" type="Bad Request">
+  Invalid request parameters or malformed data
+</ResponseField>
+
+<ResponseField name="401" type="Unauthorized">
+  Missing or invalid authentication credentials
+</ResponseField>
+
+<ResponseField name="403" type="Forbidden">
+  Authenticated but lacking required permissions
+</ResponseField>
+
+<ResponseField name="404" type="Not Found">
+  Requested resource does not exist
+</ResponseField>
+
+<ResponseField name="429" type="Too Many Requests">
+  Rate limit exceeded
+</ResponseField>
+
+<ResponseField name="500" type="Internal Server Error">
+  Server error (contact support if persistent)
+</ResponseField>
+
+## Error Codes
+
+### Authentication Errors
+
+<ResponseField name="AUTH_REQUIRED" status="401">
+  Authentication is required but no credentials were provided
+  
+  **Solution**: Include an API key in the `x-api-key` header or `Authorization` header
+</ResponseField>
+
+<ResponseField name="INVALID_API_KEY" status="401">
+  The provided API key is invalid, expired, or revoked
+  
+  **Solution**: Verify your API key is correct and hasn't been revoked. Create a new key if needed.
+</ResponseField>
+
+<ResponseField name="ACCESS_DENIED" status="403">
+  Authenticated but the API key lacks required scopes or permissions
+  
+  **Solution**: Ensure your API key has the necessary scopes (e.g., `read:data` for queries)
+</ResponseField>
+
+### Validation Errors
+
+<ResponseField name="VALIDATION_ERROR" status="400">
+  One or more request parameters are invalid
+  
+  **Details**: Check the `details` array for field-specific errors
+  
+  Example:
+  ```json
+  {
+    "success": false,
+    "error": "Invalid date format",
+    "code": "VALIDATION_ERROR",
+    "requestId": "req_abc123",
+    "details": [
+      {
+        "field": "startDate",
+        "message": "Invalid date: 2024-13-01. Could not parse as a valid date",
+        "suggestion": "Use YYYY-MM-DD format"
+      }
+    ]
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="MISSING_PARAMETER" status="400">
+  A required parameter is missing from the request
+  
+  **Solution**: Check the endpoint documentation for required parameters
+</ResponseField>
+
+<ResponseField name="MISSING_PROJECT_ID" status="400">
+  No project identifier provided (website_id, schedule_id, link_id, or organization_id)
+  
+  **Solution**: Include a project identifier in the query string
+</ResponseField>
+
+<ResponseField name="MISSING_WEBSITE_ID" status="400">
+  The `website_id` parameter is required but was not provided
+  
+  **Solution**: Add `?website_id=your_website_id` to the request URL
+</ResponseField>
+
+### Resource Errors
+
+<ResponseField name="NOT_FOUND" status="404">
+  The requested resource does not exist
+  
+  **Solution**: Verify the resource ID is correct and the resource hasn't been deleted
+</ResponseField>
+
+<ResponseField name="UNAUTHORIZED" status="401">
+  Not authorized to access this resource
+  
+  **Solution**: Verify you have access to the organization or website
+</ResponseField>
+
+<ResponseField name="FORBIDDEN" status="403">
+  Access to this resource is forbidden
+  
+  **Solution**: Check that your API key or user account has the required permissions
+</ResponseField>
+
+<ResponseField name="CONFLICT" status="409">
+  The request conflicts with the current state of the resource
+  
+  **Solution**: Check if the resource already exists or has been modified
+</ResponseField>
+
+### Rate Limit Errors
+
+<ResponseField name="RATE_LIMIT_EXCEEDED" status="429">
+  Too many requests in a short period
+  
+  **Response includes**:
+  - `limit`: The rate limit that was exceeded
+  - `remaining`: Remaining requests (0)
+  - `reset`: When the limit resets
+  - `retryAfter`: Seconds to wait before retrying
+  
+  **Solution**: Wait for the rate limit to reset or implement exponential backoff
+  
+  Example:
+  ```json
+  {
+    "success": false,
+    "error": "Rate limit exceeded. Please try again later.",
+    "code": "RATE_LIMIT_EXCEEDED",
+    "limit": 1000,
+    "remaining": 0,
+    "reset": "2024-01-01T12:00:00.000Z",
+    "retryAfter": 45
+  }
+  ```
+</ResponseField>
+
+### Query Errors
+
+<ResponseField name="QUERY_ERROR" status="400">
+  The query could not be executed
+  
+  **Solution**: Check query syntax, filters, and parameters
+</ResponseField>
+
+<ResponseField name="COMPILATION_ERROR" status="400">
+  The query could not be compiled
+  
+  **Solution**: Verify query structure matches expected format
+</ResponseField>
+
+<ResponseField name="UNKNOWN_QUERY_TYPE" status="400">
+  The specified query type does not exist
+  
+  **Solution**: Use `/v1/query/types` to list valid query types
+  
+  Example:
+  ```json
+  {
+    "field": "parameters[0]",
+    "message": "Unknown query type: traffics",
+    "suggestion": "Did you mean 'traffic'?"
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="INVALID_DATE_PRESET" status="400">
+  The specified date preset is not valid
+  
+  **Solution**: Use one of: `today`, `yesterday`, `last7days`, `last30days`, `thisMonth`, `lastMonth`, `thisYear`
+</ResponseField>
+
+### Server Errors
+
+<ResponseField name="INTERNAL_SERVER_ERROR" status="500">
+  An unexpected error occurred on the server
+  
+  **Solution**: Retry the request. If the error persists, contact support with the `requestId`
+</ResponseField>
+
+<ResponseField name="SERVICE_UNAVAILABLE" status="503">
+  The service is temporarily unavailable
+  
+  **Solution**: Retry with exponential backoff
+</ResponseField>
+
+## Handling Errors
+
+### Error Handling Best Practices
+
+```javascript
+async function safeAPICall(url, options) {
+  try {
+    const response = await fetch(url, options);
+    const data = await response.json();
+    
+    if (!data.success) {
+      // Handle API error
+      switch (data.code) {
+        case 'AUTH_REQUIRED':
+        case 'INVALID_API_KEY':
+          console.error('Authentication failed:', data.error);
+          // Redirect to login or refresh credentials
+          break;
+          
+        case 'ACCESS_DENIED':
+          console.error('Permission denied:', data.error);
+          // Show permission error to user
+          break;
+          
+        case 'RATE_LIMIT_EXCEEDED':
+          console.warn('Rate limited. Retrying after', data.retryAfter, 'seconds');
+          // Implement retry logic
+          await new Promise(resolve => setTimeout(resolve, data.retryAfter * 1000));
+          return safeAPICall(url, options); // Retry
+          
+        case 'VALIDATION_ERROR':
+          console.error('Validation failed:', data.details);
+          // Display field-specific errors to user
+          break;
+          
+        case 'NOT_FOUND':
+          console.error('Resource not found:', data.error);
+          break;
+          
+        case 'INTERNAL_SERVER_ERROR':
+          console.error('Server error. Request ID:', data.requestId);
+          // Log for monitoring, retry later
+          break;
+          
+        default:
+          console.error('API error:', data.error, data.code);
+      }
+      
+      throw new Error(data.error);
+    }
+    
+    return data;
+  } catch (error) {
+    if (error instanceof TypeError) {
+      // Network error
+      console.error('Network error:', error.message);
+    } else {
+      // Re-throw API errors
+      throw error;
+    }
+  }
+}
+```
+
+### TypeScript Error Types
+
+```typescript
+interface DatabuddyError {
+  success: false;
+  error: string;
+  code: ErrorCode;
+  requestId?: string;
+  details?: ValidationError[];
+}
+
+interface ValidationError {
+  field: string;
+  message: string;
+  suggestion?: string;
+}
+
+type ErrorCode =
+  | 'AUTH_REQUIRED'
+  | 'INVALID_API_KEY'
+  | 'ACCESS_DENIED'
+  | 'VALIDATION_ERROR'
+  | 'NOT_FOUND'
+  | 'RATE_LIMIT_EXCEEDED'
+  | 'QUERY_ERROR'
+  | 'INTERNAL_SERVER_ERROR';
+
+function isDatabuddyError(data: unknown): data is DatabuddyError {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    'success' in data &&
+    data.success === false
+  );
+}
+```
+
+### Validation Error Handling
+
+Validation errors include helpful suggestions:
+
+```javascript
+const response = await fetch('https://api.databuddy.cc/v1/query', {
+  method: 'POST',
+  headers: { 'x-api-key': API_KEY },
+  body: JSON.stringify({
+    website_id: 'website_123',
+    parameters: ['traffics'], // Typo
+    startDate: '2024-01-01',
+    endDate: '2024-01-31',
+  }),
+});
+
+const data = await response.json();
+// {
+//   "success": false,
+//   "error": "Unknown query type: traffics. Did you mean 'traffic'?",
+//   "code": "VALIDATION_ERROR",
+//   "details": [{
+//     "field": "parameters[0]",
+//     "message": "Unknown query type: traffics",
+//     "suggestion": "Did you mean 'traffic'?"
+//   }]
+// }
+
+if (data.details) {
+  data.details.forEach(detail => {
+    console.error(`${detail.field}: ${detail.message}`);
+    if (detail.suggestion) {
+      console.log(`Suggestion: ${detail.suggestion}`);
+    }
+  });
+}
+```
+
+## Debugging Tips
+
+### 1. Use Request IDs
+
+Every response includes a `requestId`. Save these for debugging:
+
+```javascript
+const data = await queryAPI(params);
+console.log('Request ID:', data.requestId);
+// Request ID: req_a1b2c3d4e5f6g7h8
+```
+
+### 2. Enable Detailed Logging
+
+```javascript
+const DEBUG = true;
+
+if (DEBUG) {
+  console.log('Request:', {
+    url,
+    method: 'POST',
+    headers: { ...headers, 'x-api-key': '[REDACTED]' },
+    body: JSON.stringify(params, null, 2),
+  });
+}
+
+const response = await fetch(url, options);
+const data = await response.json();
+
+if (DEBUG) {
+  console.log('Response:', {
+    status: response.status,
+    headers: Object.fromEntries(response.headers.entries()),
+    body: data,
+  });
+}
+```
+
+### 3. Check Query Types
+
+List available query types:
+
+```bash
+curl https://api.databuddy.cc/v1/query/types \
+  -H "x-api-key: dbdy_your_api_key"
+```
+
+### 4. Validate Dates
+
+Use YYYY-MM-DD format or ISO 8601:
+
+```javascript
+// Good
+startDate: '2024-01-01'
+startDate: '2024-01-01T00:00:00.000Z'
+
+// Bad
+startDate: '01/01/2024'
+startDate: '2024-13-01' // Invalid month
+```
+
+## Common Error Scenarios
+
+### Scenario 1: Invalid API Key
+
+**Request**:
+```bash
+curl https://api.databuddy.cc/v1/query \
+  -H "x-api-key: invalid_key"
+```
+
+**Response**:
+```json
+{
+  "success": false,
+  "error": "Authentication required",
+  "code": "AUTH_REQUIRED",
+  "requestId": "req_abc123"
+}
+```
+
+**Solution**: Verify your API key format and validity.
+
+### Scenario 2: Missing Required Scope
+
+**Request**: API key with only `write:links` scope trying to query analytics
+
+**Response**:
+```json
+{
+  "success": false,
+  "error": "Access denied to this website",
+  "code": "ACCESS_DENIED",
+  "requestId": "req_abc123"
+}
+```
+
+**Solution**: Add `read:data` scope to your API key.
+
+### Scenario 3: Validation Error
+
+**Request**:
+```json
+{
+  "website_id": "website_123",
+  "parameters": ["traffics"],
+  "preset": "last7day"
+}
+```
+
+**Response**:
+```json
+{
+  "success": false,
+  "error": "Unknown query type: traffics. Did you mean 'traffic'?",
+  "code": "VALIDATION_ERROR",
+  "requestId": "req_abc123",
+  "details": [
+    {
+      "field": "parameters[0]",
+      "message": "Unknown query type: traffics",
+      "suggestion": "Did you mean 'traffic'?"
+    },
+    {
+      "field": "preset",
+      "message": "Invalid date preset: last7day",
+      "suggestion": "Did you mean 'last7days'?"
+    }
+  ]
+}
+```
+
+**Solution**: Fix typos in parameters and preset names.
+
+## Getting Help
+
+If you encounter persistent errors:
+
+1. **Check the documentation** for the specific endpoint
+2. **Review error details** in the response
+3. **Test with the interactive API docs** at https://api.databuddy.cc/
+4. **Contact support** with your `requestId`

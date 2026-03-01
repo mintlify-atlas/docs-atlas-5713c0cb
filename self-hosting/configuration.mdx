@@ -1,0 +1,399 @@
+---
+title: Configuration
+description: Configure your self-hosted Databuddy instance
+---
+
+## Configuration Files
+
+Databuddy is configured through environment variables and package configuration. All settings are managed through `.env` files at various levels of the application.
+
+### Root Configuration
+
+The main `.env` file at the repository root contains global configuration:
+
+```bash .env
+# Database URLs
+DATABASE_URL="postgres://databuddy:password@localhost:5432/databuddy"
+CLICKHOUSE_URL="http://default:@localhost:8123/databuddy_analytics"
+REDIS_URL="redis://localhost:6379"
+
+# Application URLs
+BETTER_AUTH_URL="http://localhost:3000"
+NEXT_PUBLIC_API_URL="http://localhost:3001"
+
+# Environment
+NODE_ENV=production
+```
+
+See [Environment Variables](/self-hosting/environment-variables) for a complete reference.
+
+## Package Manager Configuration
+
+Databuddy uses Bun as its package manager. This is configured in `package.json`:
+
+```json package.json
+{
+  "name": "databuddy",
+  "packageManager": "bun@1.3.4",
+  "engines": {
+    "node": ">=20"
+  },
+  "workspaces": {
+    "packages": [
+      "apps/*",
+      "packages/*"
+    ]
+  }
+}
+```
+
+<Info>
+  Databuddy is a monorepo using Turborepo with Bun workspaces. All apps and packages share dependencies through the workspace.
+</Info>
+
+## Build Scripts
+
+Common commands for managing your Databuddy installation:
+
+### Development
+
+```bash
+# Install dependencies
+bun install
+
+# Start development servers
+bun run dev
+
+# Start only dashboard and API
+bun run dev:dashboard
+
+# Run database studio (Drizzle Studio)
+bun run db:studio
+```
+
+### Production
+
+```bash
+# Build all packages
+bun run build
+
+# Start production servers
+bun run start
+
+# Run database migrations
+bun run db:migrate
+
+# Initialize ClickHouse schema
+bun run clickhouse:init
+```
+
+### Database Management
+
+```bash
+# Generate database types from schema
+bun run generate-db
+
+# Push schema changes to database
+bun run db:push
+
+# Create migration files
+bun run db:migrate
+
+# Deploy migrations to production
+bun run db:deploy
+
+# Seed database with sample data
+bun run db:seed
+```
+
+### Testing
+
+```bash
+# Run tests
+bun run test
+
+# Run tests in watch mode
+bun run test:watch
+
+# Generate coverage report
+bun run test:coverage
+```
+
+### Code Quality
+
+```bash
+# Lint and format code
+bun run lint
+
+# Auto-fix issues
+bun run format
+
+# Type checking
+bun run check-types
+```
+
+## Application Configuration
+
+### Dashboard App
+
+The dashboard (Next.js) has its own environment configuration:
+
+```bash apps/dashboard/.env.example
+NEXT_PUBLIC_API_URL="http://localhost:3001"
+```
+
+### API Server Configuration
+
+The API server runs on Elysia and can be configured through environment variables:
+
+```typescript
+// Default configuration
+const API_PORT = process.env.PORT || 3001
+const API_HOST = process.env.HOST || '0.0.0.0'
+```
+
+## Authentication Configuration
+
+Databuddy uses Better Auth for authentication. Configure in your `.env`:
+
+```bash
+# Better Auth Configuration
+BETTER_AUTH_URL="https://your-domain.com"
+BETTER_AUTH_SECRET="your-secure-secret-key"
+
+# Generate with:
+# openssl rand -base64 32
+```
+
+### OAuth Providers
+
+Enable OAuth authentication:
+
+<AccordionGroup>
+  <Accordion title="GitHub OAuth">
+    ```bash
+    GITHUB_CLIENT_ID="your-github-client-id"
+    GITHUB_CLIENT_SECRET="your-github-client-secret"
+    ```
+    
+    Create OAuth app at: https://github.com/settings/developers
+    
+    **Callback URL:** `https://your-domain.com/api/auth/callback/github`
+  </Accordion>
+
+  <Accordion title="Google OAuth">
+    ```bash
+    GOOGLE_CLIENT_ID="your-google-client-id"
+    GOOGLE_CLIENT_SECRET="your-google-client-secret"
+    ```
+    
+    Create OAuth credentials at: https://console.cloud.google.com/apis/credentials
+    
+    **Authorized redirect URI:** `https://your-domain.com/api/auth/callback/google`
+  </Accordion>
+</AccordionGroup>
+
+## Email Configuration
+
+Configure email sending via Resend:
+
+```bash
+RESEND_API_KEY="re_your_resend_api_key"
+```
+
+Email templates can be previewed in development:
+
+```bash
+bun run email:dev
+```
+
+This starts a local preview server for email templates.
+
+## Storage Configuration (Optional)
+
+For organization image uploads, configure Cloudflare R2:
+
+```bash
+R2_ACCESS_KEY_ID="your-r2-access-key-id"
+R2_SECRET_ACCESS_KEY="your-r2-secret-key"
+R2_BUCKET="your-bucket-name"
+R2_ENDPOINT="https://your-account.r2.cloudflarestorage.com"
+```
+
+<Note>
+  Image uploads are optional. If not configured, organization profiles will work without custom images.
+</Note>
+
+## AI Features Configuration (Optional)
+
+Databuddy includes AI assistant features powered by OpenRouter:
+
+```bash
+AI_API_KEY="sk-or-v1-your-openrouter-key"
+```
+
+Get an API key from: https://openrouter.ai/
+
+<Info>
+  AI features are entirely optional and only needed if you want to use the built-in assistant for analytics insights.
+</Info>
+
+## Logging Configuration
+
+Databuddy uses Pino for structured logging. Configure log output:
+
+```bash
+# Development: pretty-print logs
+NODE_ENV=development
+
+# Production: JSON logs
+NODE_ENV=production
+```
+
+### External Log Aggregation (Optional)
+
+Integrate with Logtail for centralized logging:
+
+```bash
+LOGTAIL_SOURCE_TOKEN="your-logtail-token"
+LOGTAIL_ENDPOINT="https://in.logtail.com"
+```
+
+<Warning>
+  Logtail integration is disabled when `NODE_ENV=development` to avoid sending local development logs.
+</Warning>
+
+## SEO and Domain Ranking (Optional)
+
+Integrate with OpenPageRank for domain authority metrics:
+
+```bash
+OPR_API_KEY="your-openpagerank-api-key"
+```
+
+Get an API key from: https://www.domcop.com/openpagerank/
+
+## Background Jobs (Optional)
+
+Configure Upstash QStash for scheduled jobs:
+
+```bash
+UPSTASH_QSTASH_TOKEN="your-qstash-token"
+```
+
+<Info>
+  QStash is used for scheduled reports, data exports, and other background tasks. It's optional for basic analytics functionality.
+</Info>
+
+## CMS Integration (Optional)
+
+If using the blog feature with Marble CMS:
+
+```bash
+MARBLE_WORKSPACE_KEY="your-marble-key"
+MARBLE_API_URL="https://api.marblecms.com"
+```
+
+## Bot Detection Configuration
+
+Databuddy includes sophisticated bot detection. Configure thresholds in your application:
+
+```typescript
+// packages/tracker/src/config.ts
+export const BOT_DETECTION = {
+  enableAIBotTracking: true,
+  blockKnownBots: true,
+  trackBlockedTraffic: true
+}
+```
+
+Blocked traffic is stored in the `blocked_traffic` ClickHouse table for analysis.
+
+## CORS Configuration
+
+Configure allowed origins for API access:
+
+```typescript
+// In your API server configuration
+const allowedOrigins = [
+  'https://your-domain.com',
+  'https://app.your-domain.com'
+]
+```
+
+## Rate Limiting
+
+Databuddy uses Redis for rate limiting. Default limits:
+
+- Analytics ingestion: 1000 events/minute per IP
+- API requests: 100 requests/minute per user
+- Authentication: 5 attempts/minute per IP
+
+Adjust in your API server configuration as needed.
+
+## Performance Tuning
+
+### ClickHouse Optimization
+
+For high-volume deployments, tune ClickHouse settings:
+
+```xml clickhouse/config.xml
+<clickhouse>
+    <max_memory_usage>10000000000</max_memory_usage>
+    <max_threads>8</max_threads>
+    <max_concurrent_queries>100</max_concurrent_queries>
+</clickhouse>
+```
+
+### PostgreSQL Tuning
+
+Optimize PostgreSQL for your workload:
+
+```postgresql
+-- postgresql.conf
+shared_buffers = 4GB
+effective_cache_size = 12GB
+maintenance_work_mem = 1GB
+max_connections = 200
+```
+
+### Redis Configuration
+
+Tune Redis for caching:
+
+```bash
+# In docker-compose.yaml
+command: redis-server --maxmemory 1gb --maxmemory-policy allkeys-lru
+```
+
+## Monitoring and Health Checks
+
+### Application Health Endpoint
+
+Databuddy exposes a health check endpoint:
+
+```bash
+curl http://localhost:3001/health
+```
+
+Response:
+```json
+{
+  "status": "healthy",
+  "database": "connected",
+  "clickhouse": "connected",
+  "redis": "connected"
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Environment Variables" icon="key" href="/self-hosting/environment-variables">
+    Complete reference of all environment variables
+  </Card>
+  
+  <Card title="Database Setup" icon="database" href="/self-hosting/database-setup">
+    Initialize and manage your databases
+  </Card>
+</CardGroup>

@@ -1,122 +1,177 @@
 {
   "$schema": "https://mintlify.com/docs.json",
+  "name": "Databuddy",
   "theme": "mint",
-  "name": "Mint Starter Kit",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#3B82F6",
+    "light": "#60A5FA",
+    "dark": "#2563EB"
   },
-  "favicon": "/favicon.svg",
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/databuddy-analytics/Databuddy"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/databuddy-analytics/Databuddy"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Get Started",
             "pages": [
-              "index",
+              "introduction",
               "quickstart",
-              "development"
+              "installation"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Core Concepts",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "concepts/privacy-first",
+              "concepts/event-tracking",
+              "concepts/sessions-users",
+              "concepts/data-model"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "SDK Integration",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
+              "sdk/overview",
+              "sdk/installation",
+              "sdk/javascript",
+              "sdk/react",
+              "sdk/vue",
+              "sdk/nodejs",
+              "sdk/configuration"
             ]
           },
           {
-            "group": "AI tools",
+            "group": "Tracking",
             "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "tracking/events",
+              "tracking/pageviews",
+              "tracking/custom-properties",
+              "tracking/user-identification",
+              "tracking/sessions"
+            ]
+          },
+          {
+            "group": "Features",
+            "pages": [
+              "features/dashboard",
+              "features/analytics",
+              "features/goals",
+              "features/funnels",
+              "features/feature-flags",
+              "features/link-shortening",
+              "features/uptime-monitoring",
+              "features/ai-insights"
+            ]
+          },
+          {
+            "group": "Privacy & Compliance",
+            "pages": [
+              "privacy/gdpr-compliance",
+              "privacy/data-retention",
+              "privacy/cookie-policy",
+              "privacy/data-processing"
+            ]
+          },
+          {
+            "group": "Self-Hosting",
+            "pages": [
+              "self-hosting/overview",
+              "self-hosting/requirements",
+              "self-hosting/docker",
+              "self-hosting/configuration",
+              "self-hosting/database-setup",
+              "self-hosting/environment-variables"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/migrating-from-ga",
+              "guides/custom-dashboards",
+              "guides/webhooks",
+              "guides/troubleshooting"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "API Reference",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Overview",
             "pages": [
-              "api-reference/introduction"
+              "api/introduction",
+              "api/authentication",
+              "api/rate-limits",
+              "api/errors"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "Events API",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "api/events/track",
+              "api/events/batch",
+              "api/events/query"
+            ]
+          },
+          {
+            "group": "Analytics API",
+            "pages": [
+              "api/analytics/overview",
+              "api/analytics/pageviews",
+              "api/analytics/events",
+              "api/analytics/sessions",
+              "api/analytics/funnels"
+            ]
+          },
+          {
+            "group": "Projects API",
+            "pages": [
+              "api/projects/list",
+              "api/projects/create",
+              "api/projects/update",
+              "api/projects/delete"
+            ]
+          },
+          {
+            "group": "Links API",
+            "pages": [
+              "api/links/create",
+              "api/links/list",
+              "api/links/analytics"
+            ]
+          },
+          {
+            "group": "Uptime API",
+            "pages": [
+              "api/uptime/monitors",
+              "api/uptime/status",
+              "api/uptime/history"
+            ]
+          },
+          {
+            "group": "SDK Reference",
+            "pages": [
+              "api/sdk/tracker",
+              "api/sdk/react-hooks",
+              "api/sdk/vue-composables",
+              "api/sdk/flags"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    ]
   }
 }

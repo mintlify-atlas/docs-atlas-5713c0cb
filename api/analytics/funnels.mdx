@@ -1,0 +1,385 @@
+---
+title: 'Funnel Analytics'
+description: 'Create and analyze conversion funnels to track user journeys'
+---
+
+## Overview
+
+Funnels track multi-step user journeys to analyze conversion rates and identify drop-off points. Create funnels based on page views or custom events.
+
+## Funnel Endpoints
+
+Funnel analytics use a separate set of RPC endpoints managed through the AI tools system. These endpoints are not part of the standard query API.
+
+## List Funnels
+
+Retrieve all funnels configured for a website.
+
+```bash
+curl -X POST 'https://api.databuddy.com/rpc/funnels/list' \
+  -H 'Authorization: Bearer db_key_...' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "websiteId": "web_abc123"
+  }'
+```
+
+**Request Body**:
+
+<ParamField body="websiteId" type="string" required>
+  The website ID to list funnels for.
+</ParamField>
+
+**Response**:
+
+<ResponseField name="funnels" type="array">
+  Array of funnel objects containing:
+  - `id`: Funnel ID
+  - `name`: Funnel name
+  - `description`: Funnel description
+  - `steps`: Array of funnel steps
+  - `filters`: Applied filters
+  - `createdAt`: Creation timestamp
+</ResponseField>
+
+<ResponseField name="count" type="number">
+  Total number of funnels.
+</ResponseField>
+
+## Get Funnel by ID
+
+Retrieve details for a specific funnel.
+
+```bash
+curl -X POST 'https://api.databuddy.com/rpc/funnels/getById' \
+  -H 'Authorization: Bearer db_key_...' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "id": "funnel_xyz789",
+    "websiteId": "web_abc123"
+  }'
+```
+
+**Request Body**:
+
+<ParamField body="id" type="string" required>
+  The funnel ID.
+</ParamField>
+
+<ParamField body="websiteId" type="string" required>
+  The website ID.
+</ParamField>
+
+## Get Funnel Analytics
+
+Retrieve conversion data and metrics for a funnel.
+
+```bash
+curl -X POST 'https://api.databuddy.com/rpc/funnels/getAnalytics' \
+  -H 'Authorization: Bearer db_key_...' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "funnelId": "funnel_xyz789",
+    "websiteId": "web_abc123",
+    "startDate": "2024-01-01",
+    "endDate": "2024-01-31"
+  }'
+```
+
+**Request Body**:
+
+<ParamField body="funnelId" type="string" required>
+  The funnel ID to analyze.
+</ParamField>
+
+<ParamField body="websiteId" type="string" required>
+  The website ID.
+</ParamField>
+
+<ParamField body="startDate" type="string">
+  Start date in YYYY-MM-DD format. Defaults to 30 days ago.
+</ParamField>
+
+<ParamField body="endDate" type="string">
+  End date in YYYY-MM-DD format. Defaults to today.
+</ParamField>
+
+**Response**:
+
+The response includes step-by-step conversion metrics:
+
+<ResponseField name="steps" type="array">
+  Array of funnel steps with metrics:
+  - `step_number`: Step position (1-based)
+  - `step_name`: Human-readable step name
+  - `users_entered`: Users who reached this step
+  - `users_completed`: Users who completed this step and moved forward
+  - `conversion_rate`: Percentage who proceeded to next step
+  - `drop_off_rate`: Percentage who dropped off at this step
+  - `time_to_complete`: Average time to complete this step
+</ResponseField>
+
+<ResponseField name="overall_conversion_rate" type="number">
+  Percentage of users who completed the entire funnel.
+</ResponseField>
+
+<ResponseField name="total_users_entered" type="number">
+  Number of users who entered the funnel at step 1.
+</ResponseField>
+
+<ResponseField name="total_users_completed" type="number">
+  Number of users who completed all steps.
+</ResponseField>
+
+## Get Funnel Analytics by Referrer
+
+Analyze funnel performance segmented by traffic source.
+
+```bash
+curl -X POST 'https://api.databuddy.com/rpc/funnels/getAnalyticsByReferrer' \
+  -H 'Authorization: Bearer db_key_...' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "funnelId": "funnel_xyz789",
+    "websiteId": "web_abc123",
+    "startDate": "2024-01-01",
+    "endDate": "2024-01-31"
+  }'
+```
+
+**Request Body**: Same as `getAnalytics`
+
+**Response**:
+
+<ResponseField name="referrers" type="array">
+  Array of referrer sources with funnel metrics:
+  - `referrer`: Referrer domain or source
+  - `users_entered`: Users from this source
+  - `users_completed`: Users who completed the funnel
+  - `conversion_rate`: Source-specific conversion rate
+  - `steps`: Per-step metrics for this source
+</ResponseField>
+
+## Create Funnel
+
+Create a new funnel to track a conversion path.
+
+```bash
+curl -X POST 'https://api.databuddy.com/rpc/funnels/create' \
+  -H 'Authorization: Bearer db_key_...' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "websiteId": "web_abc123",
+    "name": "Signup Funnel",
+    "description": "Track user signup process",
+    "steps": [
+      {
+        "type": "PAGE_VIEW",
+        "target": "/signup",
+        "name": "Visit Signup Page"
+      },
+      {
+        "type": "EVENT",
+        "target": "form_submit",
+        "name": "Submit Form"
+      },
+      {
+        "type": "PAGE_VIEW",
+        "target": "/welcome",
+        "name": "Welcome Page"
+      }
+    ],
+    "filters": [
+      {
+        "field": "country",
+        "operator": "equals",
+        "value": "US"
+      }
+    ],
+    "ignoreHistoricData": false
+  }'
+```
+
+**Request Body**:
+
+<ParamField body="websiteId" type="string" required>
+  The website ID.
+</ParamField>
+
+<ParamField body="name" type="string" required>
+  Funnel name (1-100 characters).
+</ParamField>
+
+<ParamField body="description" type="string">
+  Optional funnel description.
+</ParamField>
+
+<ParamField body="steps" type="array" required>
+  Array of 2-10 funnel steps. Each step must include:
+  
+  - `type`: Step type (`PAGE_VIEW`, `EVENT`, or `CUSTOM`)
+  - `target`: Page path (for `PAGE_VIEW`) or event name (for `EVENT`)
+  - `name`: Human-readable step name
+  - `conditions`: Optional additional conditions (object)
+</ParamField>
+
+<ParamField body="filters" type="array">
+  Optional array of filters to apply to the funnel:
+  
+  - `field`: Filter field name
+  - `operator`: Filter operator (`equals`, `contains`, `not_equals`, `in`, `not_in`)
+  - `value`: Filter value (string or array of strings)
+</ParamField>
+
+<ParamField body="ignoreHistoricData" type="boolean" default="false">
+  If true, only tracks data from the funnel creation date forward.
+</ParamField>
+
+**Response**:
+
+<ResponseField name="success" type="boolean">
+  Whether the funnel was created successfully.
+</ResponseField>
+
+<ResponseField name="funnel" type="object">
+  The created funnel object with all details and assigned ID.
+</ResponseField>
+
+## Funnel Step Types
+
+### PAGE_VIEW Steps
+
+Track when users visit specific pages:
+
+```json
+{
+  "type": "PAGE_VIEW",
+  "target": "/pricing",
+  "name": "View Pricing Page"
+}
+```
+
+- Matches exact page paths
+- Path normalization automatically applied (trailing slashes removed)
+- Can use wildcards in target (e.g., `/blog/*`)
+
+### EVENT Steps
+
+Track when custom events are triggered:
+
+```json
+{
+  "type": "EVENT",
+  "target": "add_to_cart",
+  "name": "Add Product to Cart",
+  "conditions": {
+    "product_category": "premium"
+  }
+}
+```
+
+- Matches custom event names
+- Optional conditions filter events by property values
+
+### CUSTOM Steps
+
+Advanced step definitions with custom logic:
+
+```json
+{
+  "type": "CUSTOM",
+  "target": "custom_condition",
+  "name": "Custom Step",
+  "conditions": {
+    "sql": "custom_field = 'value'"
+  }
+}
+```
+
+## Funnel Analysis Features
+
+### Conversion Tracking
+
+- Calculate conversion rates between each step
+- Identify highest drop-off points
+- Track overall funnel completion rate
+- Measure time taken between steps
+
+### Segmentation
+
+- Break down conversions by referrer/source
+- Apply filters to analyze specific user segments
+- Compare performance across device types, countries, etc.
+
+### Time-based Analysis
+
+- Specify date ranges for analysis
+- Compare funnel performance across different periods
+- Track trends over time
+
+## Best Practices
+
+1. **Keep funnels focused**: 2-5 steps is optimal. Very long funnels become harder to analyze.
+
+2. **Order matters**: Steps must be defined in the expected user journey order.
+
+3. **Use clear naming**: Step names should clearly describe the user action.
+
+4. **Start broad**: Begin with a simple funnel, then add filters to segment.
+
+5. **Test your events**: Verify custom events are firing correctly before creating event-based steps.
+
+6. **Monitor regularly**: Check funnel analytics weekly to catch conversion issues early.
+
+## Example: E-commerce Checkout Funnel
+
+```json
+{
+  "websiteId": "web_abc123",
+  "name": "Checkout Funnel",
+  "description": "Track the complete purchase flow from cart to confirmation",
+  "steps": [
+    {
+      "type": "PAGE_VIEW",
+      "target": "/cart",
+      "name": "View Cart"
+    },
+    {
+      "type": "PAGE_VIEW",
+      "target": "/checkout",
+      "name": "Start Checkout"
+    },
+    {
+      "type": "EVENT",
+      "target": "payment_info_entered",
+      "name": "Enter Payment Info"
+    },
+    {
+      "type": "EVENT",
+      "target": "order_completed",
+      "name": "Complete Order"
+    },
+    {
+      "type": "PAGE_VIEW",
+      "target": "/order-confirmation",
+      "name": "View Confirmation"
+    }
+  ],
+  "filters": [
+    {
+      "field": "device_type",
+      "operator": "in",
+      "value": ["desktop", "mobile"]
+    }
+  ]
+}
+```
+
+## Notes
+
+- Funnels are evaluated in real-time as users progress through steps
+- A user can be counted multiple times if they restart the funnel
+- Steps must occur in order; skipping steps counts as a drop-off
+- Maximum 10 steps per funnel
+- Filters apply to all steps in the funnel
+- Historical data analysis depends on the `ignoreHistoricData` setting

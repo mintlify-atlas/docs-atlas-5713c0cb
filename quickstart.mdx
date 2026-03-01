@@ -1,80 +1,444 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quickstart Guide
+description: Get up and running with Databuddy in under 5 minutes
 ---
 
-## Get started in three steps
+# Quickstart Guide
 
-Get your documentation site running locally and make your first customization.
-
-### Step 1: Set up your local environment
-
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
-
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
-
-## Next steps
-
-Now that you have your docs running, explore these key features:
-
-<CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
-</CardGroup>
+Get your analytics up and running in under 5 minutes. This guide will walk you through creating an account, installing the SDK, and seeing your first analytics data.
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+  This quickstart focuses on React/Next.js. For other frameworks, see the [Installation](/installation) guide.
 </Note>
+
+## Step 1: Create Your Account
+
+<Steps>
+  <Step title="Sign Up">
+    Go to [app.databuddy.cc](https://app.databuddy.cc) and create a free account.
+  </Step>
+  
+  <Step title="Create a Project">
+    After signing in, click **"Create Project"** and give it a name (e.g., "My Website").
+  </Step>
+  
+  <Step title="Copy Your Client ID">
+    Once created, you'll see your **Client ID** in the project settings. It looks like this:
+    
+    ```
+    3ed1fce1-5a56-4cbc-a917-66864f6d18e3
+    ```
+    
+    Copy this—you'll need it in the next step.
+  </Step>
+</Steps>
+
+<Tip>
+  Store your Client ID as an environment variable named `NEXT_PUBLIC_DATABUDDY_CLIENT_ID` for Next.js projects, or `VITE_DATABUDDY_CLIENT_ID` for Vite projects.
+</Tip>
+
+## Step 2: Install the SDK
+
+Install the `@databuddy/sdk` package in your project:
+
+<CodeGroup>
+```bash npm
+npm install @databuddy/sdk
+```
+
+```bash pnpm
+pnpm add @databuddy/sdk
+```
+
+```bash yarn
+yarn add @databuddy/sdk
+```
+
+```bash bun
+bun add @databuddy/sdk
+```
+</CodeGroup>
+
+<Info>
+  The SDK is lightweight (< 10KB gzipped) and has zero dependencies.
+</Info>
+
+## Step 3: Add Databuddy to Your App
+
+Add the `<Databuddy />` component to your root layout or `_app.tsx` file:
+
+<Tabs>
+  <Tab title="Next.js App Router">
+    Add to your `app/layout.tsx`:
+    
+    ```tsx app/layout.tsx
+    import { Databuddy } from '@databuddy/sdk/react';
+
+    export default function RootLayout({
+      children,
+    }: {
+      children: React.ReactNode;
+    }) {
+      return (
+        <html lang="en">
+          <head>
+            <Databuddy
+              clientId={process.env.NEXT_PUBLIC_DATABUDDY_CLIENT_ID!}
+              trackWebVitals
+              trackErrors
+            />
+          </head>
+          <body>{children}</body>
+        </html>
+      );
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Next.js Pages Router">
+    Add to your `pages/_app.tsx`:
+    
+    ```tsx pages/_app.tsx
+    import { Databuddy } from '@databuddy/sdk/react';
+    import type { AppProps } from 'next/app';
+
+    export default function App({ Component, pageProps }: AppProps) {
+      return (
+        <>
+          <Databuddy
+            clientId={process.env.NEXT_PUBLIC_DATABUDDY_CLIENT_ID!}
+            trackWebVitals
+            trackErrors
+          />
+          <Component {...pageProps} />
+        </>
+      );
+    }
+    ```
+  </Tab>
+  
+  <Tab title="React (Vite/CRA)">
+    Add to your `main.tsx` or `App.tsx`:
+    
+    ```tsx src/App.tsx
+    import { Databuddy } from '@databuddy/sdk/react';
+
+    function App() {
+      return (
+        <>
+          <Databuddy
+            clientId={import.meta.env.VITE_DATABUDDY_CLIENT_ID}
+            trackWebVitals
+            trackErrors
+          />
+          {/* Your app components */}
+        </>
+      );
+    }
+
+    export default App;
+    ```
+  </Tab>
+</Tabs>
+
+<Warning>
+  Make sure to add your Client ID to your `.env.local` file:
+  
+  ```bash .env.local
+  NEXT_PUBLIC_DATABUDDY_CLIENT_ID=your-client-id-here
+  ```
+  
+  Never commit your Client ID to version control in plain text.
+</Warning>
+
+## Step 4: Start Your Development Server
+
+Run your development server:
+
+<CodeGroup>
+```bash Next.js
+npm run dev
+```
+
+```bash Vite
+npm run dev
+```
+</CodeGroup>
+
+Databuddy will automatically start tracking:
+- Page views
+- Navigation between pages
+- Web Vitals (FCP, LCP, CLS, INP, TTFB)
+- JavaScript errors
+- Session duration
+- Bounce rate
+
+## Step 5: View Your Analytics
+
+<Steps>
+  <Step title="Open Your Website">
+    Navigate around your website to generate some analytics data.
+  </Step>
+  
+  <Step title="Go to Your Dashboard">
+    Open [app.databuddy.cc](https://app.databuddy.cc) and select your project.
+  </Step>
+  
+  <Step title="See Your Data">
+    You should see your page views, sessions, and other metrics appearing in real-time!
+  </Step>
+</Steps>
+
+<Tip>
+  It may take a few seconds for data to appear. If you don't see anything after 30 seconds, check your browser's console for errors and verify your Client ID is correct.
+</Tip>
+
+## Step 6: Track Custom Events
+
+Now that basic tracking is working, let's track a custom event:
+
+```tsx components/SignupButton.tsx
+'use client';
+
+function SignupButton() {
+  const handleSignup = () => {
+    // Track the signup event
+    window.databuddy.track('signup_clicked', {
+      button_location: 'hero',
+      plan: 'free'
+    });
+    
+    // Your signup logic...
+  };
+
+  return (
+    <button onClick={handleSignup}>
+      Sign Up Free
+    </button>
+  );
+}
+```
+
+Or use the declarative approach with `data-track` attributes:
+
+```tsx components/SignupButton.tsx
+function SignupButton() {
+  return (
+    <button
+      data-track="signup_clicked"
+      data-button-location="hero"
+      data-plan="free"
+      onClick={handleSignup}
+    >
+      Sign Up Free
+    </button>
+  );
+}
+```
+
+<Info>
+  With `trackAttributes` enabled, any element with a `data-track` attribute will automatically send an event when clicked. The `data-*` attributes become event properties.
+</Info>
+
+## Configuration Options
+
+Here are the most commonly used configuration options:
+
+```tsx
+<Databuddy
+  clientId="your-client-id"
+  
+  // Performance tracking
+  trackWebVitals={true}        // Track FCP, LCP, CLS, INP, TTFB
+  trackPerformance={true}       // Track load time, DOM ready
+  trackErrors={true}            // Track JavaScript errors
+  
+  // Engagement tracking
+  trackScrollDepth={true}       // Track how far users scroll
+  trackOutgoingLinks={true}     // Track clicks on external links
+  trackInteractions={true}      // Track user interactions
+  trackAttributes={true}        // Enable data-track attributes
+  
+  // Privacy & optimization
+  samplingRate={1.0}            // Sample 100% of traffic (0.5 = 50%)
+  enableBatching={true}         // Batch events for efficiency
+  batchSize={20}                // Send every 20 events
+  
+  // Development
+  disabled={process.env.NODE_ENV === 'development'}
+  debug={process.env.NODE_ENV === 'development'}
+/>
+```
+
+<Tip>
+  For a complete list of options, see the [Installation Guide](/installation#configuration-reference).
+</Tip>
+
+## Advanced Usage
+
+### Set Global Properties
+
+Attach properties to all future events (useful for user traits):
+
+```tsx
+useEffect(() => {
+  if (user) {
+    window.databuddy.setGlobalProperties({
+      plan: user.plan,
+      role: user.role,
+      company_size: user.company?.size
+    });
+  }
+}, [user]);
+```
+
+### Manual Page Views
+
+Databuddy tracks page views automatically, but you can trigger them manually:
+
+```tsx
+window.databuddy.screenView({
+  screen_name: 'Settings',
+  previous_screen: 'Dashboard'
+});
+```
+
+### Flush Events
+
+Force send all queued events immediately (useful before navigation to external sites):
+
+```tsx
+const handleExternalLink = () => {
+  window.databuddy.flush();
+  window.location.href = 'https://external-site.com';
+};
+```
+
+### Reset Session
+
+Clear all tracking data (useful after logout):
+
+```tsx
+const handleLogout = () => {
+  window.databuddy.clear();
+  // Your logout logic...
+};
+```
+
+## TypeScript Support
+
+The SDK is fully typed with TypeScript. Use the global types:
+
+```tsx
+// Access the tracker with full autocomplete
+if (typeof window !== 'undefined' && window.databuddy) {
+  window.databuddy.track('button_clicked', {
+    button_text: 'Get Started',
+    location: 'hero'
+  });
+}
+
+// Or use the shorthand
+window.db?.track('event_name', { ... });
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="No data appearing in dashboard">
+    **Check these common issues:**
+    
+    1. Verify your Client ID is correct
+    2. Check browser console for errors
+    3. Make sure you're not blocking the script with ad blockers
+    4. Verify `disabled` prop is not set to `true`
+    5. Wait 30-60 seconds for data to appear
+    
+    **Debug mode:**
+    
+    ```tsx
+    <Databuddy debug={true} ... />
+    ```
+    
+    This will log all events to the console.
+  </Accordion>
+  
+  <Accordion title="Events not being tracked">
+    **For custom events:**
+    
+    1. Make sure `window.databuddy` is defined before calling `.track()`
+    2. Check that event properties don't contain functions or circular references
+    3. Verify events appear in browser console with `debug={true}`
+    
+    **For attribute tracking:**
+    
+    1. Make sure `trackAttributes={true}` is enabled
+    2. Verify element has `data-track` attribute
+    3. Check that element is clickable
+  </Accordion>
+  
+  <Accordion title="Script not loading">
+    **Common causes:**
+    
+    1. Ad blockers or privacy extensions blocking the script
+    2. CSP (Content Security Policy) blocking external scripts
+    3. Network issues or CDN unavailable
+    
+    **Solutions:**
+    
+    1. Whitelist `cdn.databuddy.cc` and `basket.databuddy.cc` in your CSP
+    2. Check Network tab in browser dev tools
+    3. Try disabling browser extensions temporarily
+  </Accordion>
+  
+  <Accordion title="TypeScript errors">
+    **If you see TypeScript errors:**
+    
+    1. Make sure you're importing from the correct path:
+       ```tsx
+       import { Databuddy } from '@databuddy/sdk/react';
+       ```
+    
+    2. Check that `window.databuddy` exists before using:
+       ```tsx
+       window.databuddy?.track('event_name');
+       ```
+    
+    3. Add type assertions if needed:
+       ```tsx
+       (window as any).databuddy.track('event');
+       ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+Now that you have Databuddy tracking your website, explore these advanced features:
+
+<CardGroup cols={2}>
+  <Card title="Installation Guide" icon="code" href="/installation">
+    Detailed setup for Vue, vanilla JS, and custom configurations.
+  </Card>
+  <Card title="Custom Events" icon="bolt">
+    Learn best practices for tracking custom events and user actions.
+  </Card>
+  <Card title="Privacy Controls" icon="shield">
+    Configure privacy settings, opt-out mechanisms, and GDPR compliance.
+  </Card>
+  <Card title="API Reference" icon="book">
+    Explore the full SDK API and all available methods.
+  </Card>
+</CardGroup>
+
+## Example Projects
+
+Check out these example projects to see Databuddy in action:
+
+- [Next.js App Router Example](https://github.com/databuddy-analytics/examples/tree/main/nextjs-app)
+- [Next.js Pages Router Example](https://github.com/databuddy-analytics/examples/tree/main/nextjs-pages)
+- [React + Vite Example](https://github.com/databuddy-analytics/examples/tree/main/react-vite)
+- [Vue 3 Example](https://github.com/databuddy-analytics/examples/tree/main/vue3)
+
+<Tip>
+  Join our [Discord community](https://discord.gg/JTk7a38tCZ) to get help, share feedback, and connect with other Databuddy users!
+</Tip>

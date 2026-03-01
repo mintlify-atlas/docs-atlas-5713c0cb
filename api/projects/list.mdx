@@ -1,0 +1,85 @@
+---
+title: 'List Projects'
+api: 'POST /websites/list'
+description: 'Returns all websites (projects) for the given organization'
+---
+
+## Authentication
+
+Requires either:
+- Session authentication (browser)
+- API key with organization scope in `x-api-key` header or `Authorization: Bearer` header
+
+## Request Body
+
+<ParamField body="organizationId" type="string" required>
+  The organization ID to list websites for
+</ParamField>
+
+<ParamField body="includeArchived" type="boolean">
+  Include archived websites in results. Defaults to `false`
+</ParamField>
+
+## Response
+
+Returns an array of website objects.
+
+<ResponseField name="id" type="string">
+  Unique website identifier
+</ResponseField>
+
+<ResponseField name="organizationId" type="string">
+  Organization that owns this website
+</ResponseField>
+
+<ResponseField name="domain" type="string">
+  Website domain (e.g., `example.com`)
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Display name for the website
+</ResponseField>
+
+<ResponseField name="publicAccess" type="boolean">
+  Whether the analytics dashboard is public
+</ResponseField>
+
+<ResponseField name="trackingStatus" type="string">
+  Current tracking status: `active`, `inactive`, or `setup_required`
+</ResponseField>
+
+<ResponseField name="createdAt" type="string">
+  ISO 8601 timestamp of creation
+</ResponseField>
+
+<ResponseField name="updatedAt" type="string">
+  ISO 8601 timestamp of last update
+</ResponseField>
+
+## Example Request
+
+```bash
+curl -X POST https://api.databuddy.cc/websites/list \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "organizationId": "org_abc123"
+  }'
+```
+
+## Example Response
+
+```json
+[
+  {
+    "id": "web_xyz789",
+    "organizationId": "org_abc123",
+    "domain": "example.com",
+    "name": "Example Website",
+    "publicAccess": false,
+    "trackingStatus": "active",
+    "createdAt": "2024-01-15T10:30:00Z",
+    "updatedAt": "2024-03-01T14:22:00Z"
+  }
+]
+```

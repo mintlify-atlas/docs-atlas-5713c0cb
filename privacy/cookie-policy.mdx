@@ -1,0 +1,634 @@
+---
+title: Cookie Policy & Cookieless Tracking
+description: How Databuddy provides powerful analytics without cookies using privacy-first, cookieless tracking technology.
+---
+
+Databuddy is **100% cookieless**. We don't use cookies, and you don't need cookie consent banners. This page explains our cookieless approach and why it's better for both privacy and analytics.
+
+## Cookie-Free Promise
+
+<Check>**Zero tracking cookies**</Check>
+<Check>**No cookie consent banners required**</Check>
+<Check>**No ePrivacy Directive compliance issues**</Check>
+<Check>**Works with browser cookie restrictions**</Check>
+
+## What Are Cookies?
+
+**HTTP cookies** are small text files stored on a user's device by websites. They're commonly used to:
+
+- Remember login sessions
+- Track user behavior across pages
+- Store user preferences
+- Enable shopping carts
+- Target advertising
+
+### Traditional Analytics Uses Cookies
+
+Google Analytics and similar tools rely heavily on cookies:
+
+```javascript Traditional Cookie-Based Tracking
+// Google Analytics sets multiple cookies:
+document.cookie = "_ga=GA1.2.1234567890.1234567890";      // Client ID (2 years)
+document.cookie = "_gid=GA1.2.0987654321.0987654321";    // Session ID (24 hours)
+document.cookie = "_gat=1";                               // Rate limiting (1 minute)
+
+// These cookies:
+// ❌ Require consent under GDPR/ePrivacy
+// ❌ Are blocked by Safari, Firefox, Brave
+// ❌ Can be cleared by users anytime
+// ❌ Trigger cookie banners
+// ❌ Don't work in incognito mode
+```
+
+### Databuddy Uses localStorage Instead
+
+Databuddy uses **localStorage** for anonymous session continuity:
+
+```javascript Cookieless Tracking with localStorage
+// Databuddy stores only an anonymous ID:
+localStorage.setItem("did", "anon_a7f3d9c2...");  // Random UUID
+
+// Session ID in sessionStorage (cleared on browser close):
+sessionStorage.setItem("did_session", "sess_b8e4f1a3...");
+
+// These storage methods:
+// ✅ Don't require consent (not cookies)
+// ✅ Not blocked by browsers
+// ✅ Used for legitimate technical purpose
+// ✅ No cookie banners needed
+// ✅ Anonymous by design
+```
+
+Implemented in: `packages/tracker/src/core/tracker.ts:145-201`
+
+## Why Cookieless Matters
+
+### 1. Privacy Regulations
+
+**ePrivacy Directive (EU Cookie Law):**
+- Requires consent for **cookies** used for tracking
+- localStorage for technical functionality is **exempt**
+- Databuddy qualifies as exempt under technical necessity
+
+**GDPR:**
+- Cookies containing personal data require consent
+- Anonymous UUIDs in localStorage are not personal data
+- No consent required for anonymous analytics
+
+**CCPA (California):**
+- Regulates "sale" of personal information
+- Anonymous analytics don't constitute "sale"
+- No disclosure requirements for anonymous data
+
+### 2. Browser Restrictions
+
+**Third-party cookie blocking:**
+
+| Browser | Third-Party Cookies | Impact on Traditional Analytics |
+|---------|-------------------|--------------------------------|
+| Safari | Blocked by default | ❌ Up to 60% data loss |
+| Firefox | Blocked (Enhanced Tracking Protection) | ❌ Up to 50% data loss |
+| Brave | Blocked + aggressive blocking | ❌ Up to 80% data loss |
+| Chrome | Phasing out by 2025 | ❌ Will break tracking |
+| Edge | Following Chrome | ❌ Will break tracking |
+
+**Databuddy is immune:**
+- ✅ Uses first-party localStorage, not cookies
+- ✅ No third-party requests
+- ✅ Works across all browsers
+- ✅ Not affected by cookie deprecation
+
+### 3. User Experience
+
+**Cookie banners hurt conversion:**
+- 20-40% of users reject tracking cookies
+- Cookie banners reduce conversion rates by 10-15%
+- Annoying user experience
+- Legal liability if implemented incorrectly
+
+**Cookieless analytics are invisible:**
+- No banners interrupting user experience
+- No consent-related data loss
+- No legal complexity
+- Better data accuracy
+
+### 4. Data Accuracy
+
+<Tabs>
+  <Tab title="With Cookie Banners">
+    ```
+    100 visitors
+    - 40 reject cookies → No data collected
+    - 30 use ad blockers → Blocked anyway  
+    - 30 accept cookies → Data collected
+    
+    Result: 30% data coverage
+    ```
+  </Tab>
+  
+  <Tab title="Cookieless (Databuddy)">
+    ```
+    100 visitors
+    - 15 use aggressive ad blockers → Blocked
+    - 85 tracked successfully → Data collected
+    
+    Result: 85% data coverage
+    ```
+    
+    **2.8x better data coverage**
+  </Tab>
+</Tabs>
+
+## How Cookieless Tracking Works
+
+### Anonymous ID Generation
+
+When a user first visits your site, Databuddy generates a random UUID:
+
+```typescript Anonymous ID Creation (tracker.ts:167-169)
+generateAnonymousId(): string {
+  return `anon_${generateUUIDv4()}`;
+}
+
+// Example output: "anon_a7f3d9c2-8b4e-4f1a-9c3d-e5f6a7b8c9d0"
+```
+
+This ID is:
+- **Random** - No connection to user identity
+- **Anonymous** - Cannot identify individual
+- **Unique** - Enables session continuity
+- **Local** - Stored in browser localStorage
+
+### Session Management
+
+Sessions use sessionStorage (cleared when browser closes):
+
+```typescript Session ID Creation (tracker.ts:204-206)
+generateSessionId(): string {
+  return `sess_${generateUUIDv4()}`;
+}
+
+// Stored in sessionStorage
+sessionStorage.setItem("did_session", sessionId);
+sessionStorage.setItem("did_session_timestamp", Date.now().toString());
+```
+
+**Session expiry:**
+- 30 minutes of inactivity
+- Browser close
+- Manual clearing
+
+```typescript Session Timeout Logic (tracker.ts:184-195)
+const sessionAge = Date.now() - parseInt(sessionTimestamp, 10);
+if (sessionAge < 30 * 60 * 1000) {  // 30 minutes
+  // Session still valid - update timestamp
+  sessionStorage.setItem("did_session_timestamp", Date.now().toString());
+  return storedId;
+}
+
+// Session expired - clean up
+sessionStorage.removeItem("did_session");
+sessionStorage.removeItem("did_session_timestamp");
+sessionStorage.removeItem("did_session_start");
+```
+
+Tested in: `packages/tracker/tests/persistence.spec.ts`
+
+### Data Transmission
+
+No cookies are sent with analytics requests:
+
+```typescript Cookieless HTTP Requests (client.ts:74-76)
+const fetchOptions: RequestInit = {
+  method: "POST",
+  headers: await this.resolveHeaders(),
+  body: JSON.stringify(data ?? {}),
+  keepalive: true,
+  credentials: "omit",  // ← No cookies sent!
+  ...options,
+};
+```
+
+**Key points:**
+- `credentials: "omit"` means **no cookies** sent or received
+- Authentication via headers (`databuddy-client-id`), not cookies
+- Anonymous ID sent in request body, not cookie
+
+## localStorage vs Cookies
+
+### Technical Comparison
+
+| Feature | Cookies | localStorage (Databuddy) |
+|---------|---------|-------------------------|
+| **Sent with requests** | Yes, automatically | No |
+| **Storage limit** | 4 KB | 5-10 MB |
+| **Expiration** | Server-controlled | Never (manual clear only) |
+| **Requires consent** | Yes (for tracking) | No (technical necessity) |
+| **Browser blocking** | Widespread | Rare |
+| **Cross-domain** | Possible (3rd party) | Never |
+| **Privacy risk** | High | Low |
+| **GDPR classification** | Often personal data | Not personal data |
+
+### Legal Differences
+
+**ePrivacy Directive (Cookie Law):**
+
+<Tabs>
+  <Tab title="Cookies for Tracking">
+    ```
+    Article 5(3): "...the use of...cookies...shall only be allowed
+    on condition that the subscriber or user concerned has given
+    his or her consent..."
+    
+    ✅ Applies to tracking cookies
+    ❌ Consent required
+    ❌ Opt-in model
+    ```
+  </Tab>
+  
+  <Tab title="localStorage for Functionality">
+    ```
+    Recital 66: "...information stored...for the sole purpose of
+    carrying out the transmission of a communication, or as
+    strictly necessary..."
+    
+    ✅ Exempt if "strictly necessary"
+    ✅ Session continuity qualifies
+    ✅ No consent required
+    ```
+  </Tab>
+</Tabs>
+
+**Databuddy's localStorage use qualifies as exempt because:**
+- Used for session continuity (technical necessity)
+- Anonymous data only (not personal data)
+- No behavioral profiling
+- Proportionate to purpose
+
+## Privacy Controls
+
+### User Can Clear Data Anytime
+
+Users have full control over their anonymous ID:
+
+```javascript Clear localStorage
+// Remove anonymous ID
+localStorage.removeItem("did");
+
+// Remove session data
+sessionStorage.removeItem("did_session");
+sessionStorage.removeItem("did_session_timestamp");
+sessionStorage.removeItem("did_session_start");
+
+// Result: All tracking data cleared, new anonymous ID on next visit
+```
+
+### Built-in Opt-Out
+
+Complete opt-out function:
+
+```javascript Opt-Out Function (index.ts:404-405)
+function databuddyOptOut() {
+  localStorage.setItem("databuddy_opt_out", "true");
+  localStorage.setItem("databuddy_disabled", "true");
+  window.databuddyOptedOut = true;
+}
+
+// Usage
+window.databuddyOptOut();
+```
+
+The tracker checks opt-out status before tracking:
+
+```typescript Opt-Out Check (utils.ts:47-48)
+export function isOptedOut(): boolean {
+  return (
+    localStorage.getItem("databuddy_opt_out") === "true" ||
+    localStorage.getItem("databuddy_disabled") === "true" ||
+    window.databuddyOptedOut === true
+  );
+}
+```
+
+Tested in: `packages/tracker/tests/privacy.spec.ts:18-94`
+
+### Privacy Controls UI
+
+```tsx components/CookieControls.tsx
+"use client";
+import { useState, useEffect } from "react";
+
+export function CookieControls() {
+  const [storageUsed, setStorageUsed] = useState<number>(0);
+  const [hasAnonymousId, setHasAnonymousId] = useState(false);
+
+  useEffect(() => {
+    // Check what's stored
+    const anonId = localStorage.getItem("did");
+    setHasAnonymousId(!!anonId);
+    
+    // Calculate storage usage
+    const stored = JSON.stringify(localStorage).length;
+    setStorageUsed(stored);
+  }, []);
+
+  const clearAllData = () => {
+    localStorage.removeItem("did");
+    sessionStorage.removeItem("did_session");
+    sessionStorage.removeItem("did_session_timestamp");
+    sessionStorage.removeItem("did_session_start");
+    
+    setHasAnonymousId(false);
+    setStorageUsed(0);
+    alert("All analytics data cleared. You'll receive a new anonymous ID on next page load.");
+  };
+
+  return (
+    <div className="border p-4 rounded-lg">
+      <h3 className="font-semibold mb-2">Analytics Data (No Cookies)</h3>
+      
+      <div className="space-y-2 text-sm">
+        <div className="flex justify-between">
+          <span>Cookies used:</span>
+          <span className="font-mono text-green-600">0</span>
+        </div>
+        
+        <div className="flex justify-between">
+          <span>Anonymous ID:</span>
+          <span className="font-mono">
+            {hasAnonymousId ? "Yes (localStorage)" : "None"}
+          </span>
+        </div>
+        
+        <div className="flex justify-between">
+          <span>Storage used:</span>
+          <span className="font-mono">{storageUsed} bytes</span>
+        </div>
+      </div>
+
+      <button
+        onClick={clearAllData}
+        disabled={!hasAnonymousId}
+        className="mt-4 w-full px-4 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        Clear All Analytics Data
+      </button>
+
+      <p className="text-xs text-gray-500 mt-2">
+        Note: No cookies are used. Only anonymous localStorage data.
+      </p>
+    </div>
+  );
+}
+```
+
+## Cookie Banner Comparison
+
+### Traditional Analytics Requires Banners
+
+```html Cookie Consent Banner (Required for GA4)
+<div class="cookie-banner">
+  <p>
+    We use cookies to analyze website traffic and improve your experience.
+    By accepting, you consent to our cookie policy.
+  </p>
+  
+  <button onclick="acceptCookies()">Accept</button>
+  <button onclick="rejectCookies()">Reject</button>
+  <a href="/cookie-policy">Cookie Policy</a>
+</div>
+
+<script>
+  function acceptCookies() {
+    // Load Google Analytics
+    gtag('consent', 'update', {
+      'analytics_storage': 'granted'
+    });
+  }
+  
+  function rejectCookies() {
+    // Disable analytics - lose data
+    gtag('consent', 'update', {
+      'analytics_storage': 'denied'
+    });
+  }
+</script>
+```
+
+**Problems:**
+- Interrupts user experience
+- 20-40% reject rate → data loss
+- Complex implementation
+- Legal liability if wrong
+- Requires cookie policy page
+- Must track consent preferences
+
+### Databuddy Requires Nothing
+
+```tsx Simple Setup (No Banner Needed)
+import { Databuddy } from "@databuddy/react";
+
+export default function RootLayout({ children }) {
+  return (
+    <html>
+      <body>
+        <Databuddy clientId="your-client-id" />
+        {/* That's it. No banner, no consent, no complexity. */}
+        {children}
+      </body>
+    </html>
+  );
+}
+```
+
+**Benefits:**
+- Zero interruption
+- 100% data coverage (minus ad-blockers)
+- Simple implementation
+- No legal complexity
+- No cookie policy needed
+- No consent tracking
+
+## Cookie Policy Statement
+
+For your privacy policy or cookie policy page:
+
+<Accordion title="Sample Cookie/Privacy Policy Language">
+```markdown
+### Cookies and Tracking Technologies
+
+**We do not use cookies for analytics.**
+
+Instead of cookies, our website uses Databuddy for anonymous analytics.
+Databuddy stores a random anonymous identifier in your browser's local
+storage (not a cookie) to understand website usage patterns.
+
+**What is stored:**
+- Anonymous ID: A random UUID like "anon_a7f3d9c2..." stored in localStorage
+- Session ID: A temporary session identifier stored in sessionStorage
+
+**What is NOT stored:**
+- No personal information (names, emails, addresses)
+- No persistent tracking cookies
+- No cross-site identifiers
+- No data shared with third parties
+
+**Your control:**
+You can clear your anonymous ID at any time by clearing your browser's
+localStorage. This will not affect any other functionality on our website.
+
+**Legal basis:**
+Anonymous analytics without cookies or personal data processing operates
+under legitimate interest (GDPR Article 6(1)(f)) and does not require
+consent under ePrivacy regulations.
+
+**Third-party cookies:**
+We may use cookies from third-party services (e.g., authentication, payment
+processors). These are separate from our analytics and will be disclosed
+here if applicable.
+```
+</Accordion>
+
+## Authentication Cookies
+
+<Note>
+**Important:** While Databuddy is cookieless for **analytics**, your website may still use cookies for **authentication** or other functionality. Only analytics tracking is cookieless.
+</Note>
+
+### Dashboard Authentication Uses Cookies
+
+The Databuddy **dashboard** (app.databuddy.cc) uses authentication cookies:
+
+```typescript
+// From source: packages/auth/src/auth.ts:145-150
+crossSubDomainCookies: {
+  // Authentication cookies (not analytics)
+},
+cookiePrefix: "databuddy",
+useSecureCookies: isProduction(),
+```
+
+These are **functional cookies** necessary for login, exempt from consent under "strictly necessary" exception.
+
+### Your Website May Have Other Cookies
+
+Databuddy analytics are cookieless, but you might use cookies for:
+
+- **Authentication** - Login sessions
+- **Shopping carts** - E-commerce functionality
+- **Preferences** - Theme, language settings
+- **Third-party services** - Chat widgets, payments, etc.
+
+**Cookie audit example:**
+
+| Cookie Name | Purpose | Duration | Requires Consent? |
+|-------------|---------|----------|------------------|
+| `auth_token` | Login session | 7 days | No (strictly necessary) |
+| `cart_items` | Shopping cart | 30 days | No (strictly necessary) |
+| `theme` | Dark mode preference | 1 year | No (functional) |
+| `databuddy_*` | **None - cookieless** | - | - |
+
+## Frequently Asked Questions
+
+<AccordionGroup>
+  <Accordion title="Does Databuddy use any cookies at all?">
+    **No.** Databuddy analytics tracking uses **zero cookies**. We use localStorage and sessionStorage instead, which are not cookies and not subject to cookie consent laws when used for technical functionality.
+  </Accordion>
+
+  <Accordion title="Why is localStorage exempt from cookie consent?">
+    The ePrivacy Directive regulates **cookies** specifically. localStorage used for legitimate technical purposes (session continuity, anonymous analytics) is exempt from consent requirements. Additionally, anonymous data is not personal data under GDPR, removing another consent trigger.
+  </Accordion>
+
+  <Accordion title="Can users block localStorage like they block cookies?">
+    Technically yes, but it's much rarer. Most browsers don't block first-party localStorage by default (unlike third-party cookies). Users can manually clear it, and we provide an opt-out function.
+  </Accordion>
+
+  <Accordion title="Do I still need a cookie banner if I use Databuddy?">
+    **Not for Databuddy analytics.** However, if you use other services that set cookies (authentication, advertising, chat widgets, etc.), you may still need a cookie banner for those. Databuddy itself requires no banner.
+  </Accordion>
+
+  <Accordion title="What about Safari's ITP and Firefox's ETP?">
+    These browser privacy features block **third-party cookies and cross-site tracking**. Databuddy uses first-party localStorage and no cross-site tracking, so it's unaffected by ITP, ETP, or similar protections.
+  </Accordion>
+
+  <Accordion title="How does cookieless tracking handle returning visitors?">
+    The anonymous ID in localStorage persists across sessions, allowing us to recognize returning visitors (as anonymous users) without cookies. If they clear localStorage, they'll be counted as a new visitor.
+  </Accordion>
+
+  <Accordion title="Is localStorage GDPR compliant?">
+    Yes, when used for anonymous data. The GDPR regulates **personal data**. Random UUIDs stored in localStorage are not personal data because they cannot identify an individual. Additionally, localStorage for technical functionality is permitted under legitimate interest.
+  </Accordion>
+</AccordionGroup>
+
+## Migration from Cookie-Based Analytics
+
+Switching from Google Analytics or similar:
+
+<Steps>
+  <Step title="Audit Current Cookies">
+    Identify all cookies your site currently uses:
+    
+    ```javascript
+    // Check in browser console
+    console.table(
+      document.cookie.split(';').map(c => {
+        const [name, value] = c.trim().split('=');
+        return { name, value };
+      })
+    );
+    ```
+  </Step>
+  
+  <Step title="Remove GA4 / Old Analytics">
+    Remove Google Analytics scripts:
+    
+    ```html
+    <!-- Delete these -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=GA_ID"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      // ... GA4 code
+    </script>
+    ```
+  </Step>
+  
+  <Step title="Install Databuddy">
+    Add cookieless Databuddy:
+    
+    ```tsx
+    import { Databuddy } from "@databuddy/react";
+    
+    <Databuddy clientId="your-client-id" />
+    ```
+  </Step>
+  
+  <Step title="Remove Cookie Banner (If Only for Analytics)">
+    If your cookie banner was only for analytics, remove it entirely.
+    
+    If you have other cookies, update banner to exclude analytics.
+  </Step>
+  
+  <Step title="Update Privacy Policy">
+    Replace cookie disclosure with cookieless disclosure (see template above).
+  </Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="GDPR Compliance" icon="shield-check" href="/privacy/gdpr-compliance">
+    Learn why Databuddy is GDPR compliant by default
+  </Card>
+  
+  <Card title="Data Retention" icon="database" href="/privacy/data-retention">
+    Understand how long data is stored
+  </Card>
+  
+  <Card title="Data Processing" icon="server" href="/privacy/data-processing">
+    See where and how data is processed
+  </Card>
+  
+  <Card title="Get Started" icon="rocket" href="/quickstart">
+    Set up cookieless analytics in 5 minutes
+  </Card>
+</CardGroup>

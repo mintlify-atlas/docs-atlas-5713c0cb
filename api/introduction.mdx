@@ -1,0 +1,135 @@
+---
+title: 'API Introduction'
+description: 'Getting started with the Databuddy API for privacy-first analytics'
+---
+
+## Overview
+
+The Databuddy API provides programmatic access to your analytics data, link management, feature flags, and more. Built with privacy-first principles, it enables you to query, analyze, and manage your data securely.
+
+## Base URLs
+
+All API requests should be made to:
+
+```
+https://api.databuddy.cc
+```
+
+### Endpoints
+
+- **Query API**: `/v1/query` - Execute analytics queries
+- **RPC API**: `/rpc/*` - Access to organization, website, and resource management
+- **OpenAPI Docs**: `/` - Interactive API documentation
+- **OpenAPI Spec**: `/spec.json` - OpenAPI specification
+
+## API Architecture
+
+The Databuddy API uses two patterns:
+
+1. **Query API** - RESTful endpoints for analytics queries with flexible filtering and aggregation
+2. **RPC API** - Type-safe remote procedure calls for resource management
+
+## Authentication Methods
+
+Databuddy supports two authentication methods:
+
+### Session Authentication
+
+Used for browser-based requests. Session cookies are automatically included when authenticated through the dashboard.
+
+### API Key Authentication
+
+Recommended for programmatic access. See the [Authentication](/api/authentication) page for details.
+
+## SDKs and Libraries
+
+Databuddy provides official SDKs for popular platforms:
+
+### JavaScript/TypeScript
+
+```bash
+npm install @databuddy/sdk
+```
+
+```typescript
+import { Databuddy } from '@databuddy/sdk';
+
+const client = new Databuddy({
+  apiKey: 'dbdy_...',
+});
+
+const data = await client.query.execute({
+  website_id: 'website_123',
+  parameters: ['traffic', 'devices'],
+  startDate: '2024-01-01',
+  endDate: '2024-01-31',
+});
+```
+
+### Python
+
+```bash
+pip install databuddy
+```
+
+```python
+from databuddy import Databuddy
+
+client = Databuddy(api_key='dbdy_...')
+
+data = client.query.execute(
+    website_id='website_123',
+    parameters=['traffic', 'devices'],
+    start_date='2024-01-01',
+    end_date='2024-01-31'
+)
+```
+
+## Response Format
+
+All API responses follow a consistent structure:
+
+### Success Response
+
+```json
+{
+  "success": true,
+  "requestId": "req_abc123",
+  "data": [...],
+  "meta": {
+    "total": 100,
+    "page": 1,
+    "limit": 50
+  }
+}
+```
+
+### Error Response
+
+```json
+{
+  "success": false,
+  "error": "Validation failed",
+  "code": "VALIDATION_ERROR",
+  "requestId": "req_abc123",
+  "details": [
+    {
+      "field": "startDate",
+      "message": "Invalid date format",
+      "suggestion": "Use YYYY-MM-DD format"
+    }
+  ]
+}
+```
+
+## Rate Limits
+
+API requests are rate limited based on your authentication method and plan. See the [Rate Limits](/api/rate-limits) page for details.
+
+## Need Help?
+
+If you encounter issues or have questions:
+
+- Check the [Errors](/api/errors) reference for common error codes
+- Review the [Authentication](/api/authentication) guide
+- Explore the interactive [API documentation](https://api.databuddy.cc/)

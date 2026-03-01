@@ -1,0 +1,216 @@
+---
+title: 'Authentication'
+description: 'Authenticate API requests with API keys'
+---
+
+## Overview
+
+Databuddy API supports two authentication methods:
+
+1. **API Keys** - For programmatic access (recommended)
+2. **Session Cookies** - For browser-based requests
+
+API keys are the preferred method for server-to-server communication and external integrations.
+
+## API Key Authentication
+
+### Creating an API Key
+
+API keys are created in the Databuddy dashboard:
+
+1. Navigate to **Organization → API Keys**
+2. Click **Create API Key**
+3. Select the appropriate scopes
+4. Copy the key securely (it's shown only once)
+
+### API Key Format
+
+Databuddy API keys use the following format:
+
+```
+dbdy_<48_character_secret>
+```
+
+Example: `dbdy_a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4`
+
+### Sending API Keys
+
+There are two ways to authenticate with an API key:
+
+#### Method 1: x-api-key Header (Recommended)
+
+```bash
+curl https://api.databuddy.cc/v1/query \
+  -H "x-api-key: dbdy_your_api_key_here" \
+  -H "Content-Type: application/json"
+```
+
+#### Method 2: Bearer Token
+
+```bash
+curl https://api.databuddy.cc/v1/query \
+  -H "Authorization: Bearer dbdy_your_api_key_here" \
+  -H "Content-Type: application/json"
+```
+
+## API Key Scopes
+
+API keys must be granted specific scopes to access different resources:
+
+<ParamField path="read:data" type="string">
+  Read access to analytics data. Required for querying websites and executing analytics queries.
+</ParamField>
+
+<ParamField path="write:llm" type="string">
+  Write access to LLM analytics data. Required for tracking LLM usage and costs.
+</ParamField>
+
+<ParamField path="track:events" type="string">
+  Permission to track events. Required for ingesting analytics events.
+</ParamField>
+
+<ParamField path="read:links" type="string">
+  Read access to short links. Required for listing and retrieving link data.
+</ParamField>
+
+<ParamField path="write:links" type="string">
+  Create, update, and delete short links.
+</ParamField>
+
+### Resource-Level Scopes
+
+API keys can be scoped to specific resources:
+
+- **Global access** - Access all resources in the organization
+- **Website-specific** - Access only specified websites
+
+Resource scoping is configured in the key's metadata:
+
+```json
+{
+  "resources": {
+    "global": ["read:data"],
+    "website:abc123": ["read:data", "write:llm"],
+    "website:xyz789": ["read:links", "write:links"]
+  }
+}
+```
+
+## API Key Management
+
+### Key Properties
+
+<ResponseField name="id" type="string">
+  Unique identifier for the API key
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Human-readable name for the key
+</ResponseField>
+
+<ResponseField name="scopes" type="array">
+  Array of granted scopes (e.g., `["read:data", "write:links"]`)
+</ResponseField>
+
+<ResponseField name="enabled" type="boolean">
+  Whether the key is currently active
+</ResponseField>
+
+<ResponseField name="expiresAt" type="string" optional>
+  Expiration date (ISO 8601 format). Null for keys that don't expire.
+</ResponseField>
+
+<ResponseField name="revokedAt" type="string" optional>
+  Revocation date. Null if the key hasn't been revoked.
+</ResponseField>
+
+<ResponseField name="organizationId" type="string">
+  Organization the key belongs to
+</ResponseField>
+
+### Key Validation
+
+API keys are validated on each request:
+
+1. **Format check** - Must start with `dbdy_` and be 10-200 characters
+2. **Hash lookup** - Key is hashed (SHA-256) and looked up in the database
+3. **Status check** - Key must be enabled, not revoked, and not expired
+4. **Scope check** - Request must match the key's granted scopes
+
+Validation happens in `/packages/api-keys/src/resolve.ts:63-79`.
+
+### Caching
+
+API keys are cached for 60 seconds with stale-while-revalidate:
+
+- Cache duration: 60 seconds
+- Stale time: 30 seconds
+- Keys are cached by hash to optimize lookup performance
+
+See `/packages/api-keys/src/resolve.ts:21-34`.
+
+## Session Authentication
+
+For browser-based requests, Databuddy uses session cookies. Session authentication:
+
+- Does not require scopes
+- Access is determined by organization membership and role
+- Sessions are automatically managed by the dashboard
+
+## Security Best Practices
+
+<Warning>
+  Never commit API keys to version control or expose them in client-side code.
+</Warning>
+
+### Key Storage
+
+- Store keys in environment variables
+- Use a secrets manager (e.g., AWS Secrets Manager, HashiCorp Vault)
+- Rotate keys periodically
+
+### Key Rotation
+
+1. Create a new API key with the same scopes
+2. Update your application to use the new key
+3. Revoke the old key after verifying the new one works
+
+### Monitoring
+
+- Monitor API key usage in the dashboard
+- Set up alerts for unusual activity
+- Review access logs regularly
+
+## Example: Complete Authentication Flow
+
+```javascript
+// Good: Store API key in environment variable
+const API_KEY = process.env.DATABUDDY_API_KEY;
+
+const response = await fetch('https://api.databuddy.cc/v1/query', {
+  method: 'POST',
+  headers: {
+    'x-api-key': API_KEY,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    website_id: 'website_123',
+    parameters: ['traffic'],
+    startDate: '2024-01-01',
+    endDate: '2024-01-31',
+  }),
+});
+
+if (!response.ok) {
+  const error = await response.json();
+  if (error.code === 'AUTH_REQUIRED') {
+    console.error('Invalid or missing API key');
+  } else if (error.code === 'ACCESS_DENIED') {
+    console.error('API key lacks required scopes');
+  }
+  throw new Error(error.error);
+}
+
+const data = await response.json();
+console.log(data);
+```

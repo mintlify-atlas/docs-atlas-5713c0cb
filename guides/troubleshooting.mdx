@@ -1,0 +1,542 @@
+---
+title: Troubleshooting
+description: Common issues, debugging tips, and solutions for Databuddy analytics
+---
+
+## Events not appearing
+
+If you're not seeing events in your Databuddy dashboard, work through these checks:
+
+<AccordionGroup>
+  <Accordion title="Verify the tracker is loaded">
+    Check that the Databuddy script is present on your page:
+
+    ```tsx
+    import { isTrackerAvailable } from '@databuddy/sdk';
+
+    if (isTrackerAvailable()) {
+      console.log('Databuddy tracker is loaded');
+    } else {
+      console.error('Databuddy tracker is not available');
+    }
+    ```
+
+    Or check in browser console:
+
+    ```javascript
+    console.log(window.databuddy); // Should show tracker object
+    console.log(window.db);        // Alternative shorthand
+    ```
+
+    If `undefined`, the script hasn't loaded. Check:
+    - Network tab for script loading errors
+    - Content Security Policy (CSP) blocking the script
+    - Ad blockers interfering with the script
+  </Accordion>
+
+  <Accordion title="Enable debug mode">
+    Turn on debug logging to see what's happening:
+
+    ```tsx
+    import { Databuddy } from '@databuddy/sdk/react';
+
+    <Databuddy debug />
+    ```
+
+    This will log:
+    - Event tracking calls
+    - Batching behavior
+    - Network requests
+    - Errors
+
+    Check your browser console for Databuddy logs.
+  </Accordion>
+
+  <Accordion title="Check client ID configuration">
+    Verify your client ID is set correctly:
+
+    ```tsx
+    // Check environment variable
+    console.log(process.env.NEXT_PUBLIC_DATABUDDY_CLIENT_ID);
+
+    // Or pass explicitly
+    <Databuddy clientId="your-client-id-here" />
+    ```
+
+    Your client ID should be:
+    - A valid UUID format
+    - Matching the ID from your Databuddy dashboard
+    - Prefixed with `NEXT_PUBLIC_` in Next.js to make it available in the browser
+  </Accordion>
+
+  <Accordion title="Verify API endpoint">
+    Ensure events can reach the Databuddy API:
+
+    1. Open browser DevTools → Network tab
+    2. Filter by "basket.databuddy.cc"
+    3. Trigger an event (navigate to a page)
+    4. Look for POST requests to `/v1/batch` or `/v1/event`
+
+    If requests are:
+    - **Blocked by CORS:** Check your domain is allowed in Databuddy settings
+    - **404 errors:** Verify your API URL and client ID are correct
+    - **401/403 errors:** Check your client ID and permissions
+    - **Not appearing:** The tracker may not be loaded or events aren't firing
+  </Accordion>
+
+  <Accordion title="Check event batching">
+    Events are batched by default. They send after:
+    - 10 events collected (default batch size)
+    - 2 seconds elapsed (default batch timeout)
+    - Page unload/navigation
+
+    Force immediate sending for testing:
+
+    ```tsx
+    import { track, flush } from '@databuddy/sdk';
+
+    track('test_event', { test: true });
+    flush(); // Force immediate send
+    ```
+
+    Or disable batching entirely:
+
+    ```tsx
+    <Databuddy enableBatching={false} />
+    ```
+  </Accordion>
+
+  <Accordion title="Verify you're not in bot detection">
+    Databuddy automatically filters bot traffic. If you're testing in:
+    - Headless browsers
+    - Automated testing tools
+    - Some dev tools
+
+    You may be flagged as a bot. Disable bot detection for testing:
+
+    ```tsx
+    <Databuddy ignoreBotDetection />
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Performance issues
+
+<AccordionGroup>
+  <Accordion title="Script blocking page load">
+    The Databuddy script is designed to be non-blocking, but if you're experiencing issues:
+
+    **Next.js:**
+    ```tsx
+    import { Databuddy } from '@databuddy/sdk/react';
+
+    // The component automatically uses next/script with afterInteractive
+    <Databuddy />
+    ```
+
+    **Other frameworks:**
+    ```html
+    <script src="https://cdn.databuddy.cc/databuddy.js" async defer></script>
+    ```
+
+    Use `async` or `defer` to prevent blocking.
+  </Accordion>
+
+  <Accordion title="Too many network requests">
+    If you see excessive requests:
+
+    1. **Increase batch size:**
+       ```tsx
+       <Databuddy batchSize={20} batchTimeout={5000} />
+       ```
+
+    2. **Reduce tracking volume:**
+       - Don't track every mouse movement
+       - Debounce rapid events
+       - Use sampling for high-frequency events
+
+    3. **Enable sampling:**
+       ```tsx
+       <Databuddy samplingRate={0.1} /> {/* Track 10% of events */}
+       ```
+  </Accordion>
+
+  <Accordion title="Large event payloads">
+    Keep event properties lean:
+
+    **Bad:**
+    ```tsx
+    track('page_loaded', {
+      entire_dom: document.body.innerHTML,  // Too large!
+      all_styles: getAllComputedStyles(),   // Unnecessary
+      full_state: JSON.stringify(appState)  // Too much data
+    });
+    ```
+
+    **Good:**
+    ```tsx
+    track('page_loaded', {
+      page_type: 'product',
+      load_time_ms: 1250,
+      interactive: true
+    });
+    ```
+
+    Properties should be:
+    - Primitives (strings, numbers, booleans)
+    - Small arrays or objects
+    - Under 1KB per event
+  </Accordion>
+</AccordionGroup>
+
+## Tracking accuracy
+
+<AccordionGroup>
+  <Accordion title="Session tracking issues">
+    Sessions reset after 30 minutes of inactivity. If you're seeing unexpected session behavior:
+
+    **Get current session ID:**
+    ```tsx
+    import { getSessionId } from '@databuddy/sdk';
+
+    const sessionId = getSessionId();
+    console.log('Current session:', sessionId);
+    ```
+
+    **Clear session for testing:**
+    ```tsx
+    import { clear } from '@databuddy/sdk';
+
+    clear(); // Generates new session and anonymous IDs
+    ```
+
+    Sessions are stored in `sessionStorage` and cleared when:
+    - Browser tab is closed
+    - 30 minutes of inactivity pass
+    - `clear()` is called
+  </Accordion>
+
+  <Accordion title="User tracking across domains">
+    To track users across multiple domains:
+
+    ```tsx
+    import { getTrackingParams } from '@databuddy/sdk';
+
+    // When linking to another domain
+    const params = getTrackingParams();
+    const url = `https://other-domain.com?${params}`;
+
+    // Link: https://other-domain.com?anonId=xxx&sessionId=yyy
+    ```
+
+    On the destination domain, Databuddy will automatically detect and use these IDs.
+  </Accordion>
+
+  <Accordion title="Duplicate events">
+    If you're seeing duplicate events:
+
+    1. **Check for double tracking:**
+       ```tsx
+       // Bad: Multiple Databuddy components
+       <Databuddy />
+       <Databuddy /> {/* Remove duplicate */}
+       ```
+
+    2. **Avoid tracking in useEffect without dependencies:**
+       ```tsx
+       // Bad: Tracks on every render
+       useEffect(() => {
+         track('component_rendered');
+       });
+
+       // Good: Track only once on mount
+       useEffect(() => {
+         track('component_mounted');
+       }, []);
+       ```
+
+    3. **Debounce rapid events:**
+       ```tsx
+       import { useDebouncedCallback } from 'use-debounce';
+
+       const trackSearch = useDebouncedCallback((query) => {
+         track('search_performed', { query });
+       }, 500);
+       ```
+  </Accordion>
+
+  <Accordion title="Events missing properties">
+    If event properties aren't appearing:
+
+    1. **Check property types:**
+       ```tsx
+       // Only JSON-serializable types work
+       track('event', {
+         valid_string: 'hello',
+         valid_number: 42,
+         valid_boolean: true,
+         valid_null: null,
+         invalid_function: () => {}, // Removed
+         invalid_undefined: undefined, // Removed
+         invalid_symbol: Symbol(),     // Removed
+       });
+       ```
+
+    2. **Verify property names:**
+       - Use `snake_case` or `camelCase`
+       - Avoid special characters
+       - Don't start with numbers
+
+    3. **Check for circular references:**
+       ```tsx
+       const obj = { name: 'test' };
+       obj.self = obj; // Circular reference - will fail
+
+       track('event', { data: obj }); // Error
+       ```
+  </Accordion>
+</AccordionGroup>
+
+## Integration issues
+
+<AccordionGroup>
+  <Accordion title="Next.js App Router issues">
+    If tracking isn't working in Next.js App Router:
+
+    1. **Ensure client component:**
+       ```tsx
+       'use client'; // Must be at the top
+
+       import { track } from '@databuddy/sdk';
+       ```
+
+    2. **Add Databuddy to root layout:**
+       ```tsx app/layout.tsx
+       import { Databuddy } from '@databuddy/sdk/react';
+
+       export default function RootLayout({ children }) {
+         return (
+           <html>
+             <body>
+               <Databuddy />
+               {children}
+             </body>
+           </html>
+         );
+       }
+       ```
+
+    3. **Check environment variables are exposed:**
+       ```bash .env.local
+       # Must start with NEXT_PUBLIC_ to be available in browser
+       NEXT_PUBLIC_DATABUDDY_CLIENT_ID=your-client-id
+       ```
+  </Accordion>
+
+  <Accordion title="Server-side tracking not working">
+    The browser SDK doesn't work on the server. For server-side tracking, use the Node SDK:
+
+    ```typescript
+    import { Databuddy } from '@databuddy/sdk/node';
+
+    const client = new Databuddy({
+      apiKey: process.env.DATABUDDY_API_KEY,
+      websiteId: process.env.DATABUDDY_WEBSITE_ID,
+    });
+
+    await client.track({
+      name: 'server_event',
+      properties: { source: 'api' }
+    });
+    ```
+
+    Note:
+    - Use API key (not client ID) for server-side
+    - Events won't have session/anonymous IDs unless you pass them explicitly
+  </Accordion>
+
+  <Accordion title="Webpack/bundler errors">
+    If you get bundler errors:
+
+    ```
+    Module not found: Can't resolve '@databuddy/sdk'
+    ```
+
+    1. **Reinstall dependencies:**
+       ```bash
+       rm -rf node_modules package-lock.json
+       npm install
+       ```
+
+    2. **Check import path:**
+       ```tsx
+       // Correct imports
+       import { track } from '@databuddy/sdk';           // Browser tracking
+       import { Databuddy } from '@databuddy/sdk/react'; // React component
+       import { Databuddy } from '@databuddy/sdk/node';  // Node.js SDK
+       ```
+
+    3. **Ensure package is installed:**
+       ```bash
+       npm list @databuddy/sdk
+       ```
+  </Accordion>
+
+  <Accordion title="TypeScript errors">
+    If you're getting TypeScript errors:
+
+    1. **Missing types:**
+       ```bash
+       npm install --save-dev @types/node
+       ```
+
+    2. **Type errors in track():**
+       ```tsx
+       import { track } from '@databuddy/sdk';
+
+       // Type-safe tracking
+       track('purchase', {
+         amount: 99.99,
+         currency: 'USD',
+         // TypeScript will validate property types
+       });
+       ```
+
+    3. **Module resolution:**
+       ```json tsconfig.json
+       {
+         "compilerOptions": {
+           "moduleResolution": "bundler",
+           "esModuleInterop": true
+         }
+       }
+       ```
+  </Accordion>
+</AccordionGroup>
+
+## Webhook issues
+
+For webhook troubleshooting, see the [webhooks guide](/guides/webhooks#troubleshooting-webhooks).
+
+## Data discrepancies
+
+<AccordionGroup>
+  <Accordion title="Metrics don't match Google Analytics">
+    Databuddy and Google Analytics may show different numbers due to:
+
+    1. **Bot filtering:** Databuddy filters bots by default, GA may not
+    2. **Sampling:** GA samples data on high traffic, Databuddy never samples
+    3. **Session definitions:** Different session timeout configurations
+    4. **Client-side filtering:** Ad blockers block GA more aggressively
+    5. **Timing:** GA has delayed reporting, Databuddy is real-time
+
+    Expect 5-15% variance, which is normal and often means Databuddy is more accurate.
+  </Accordion>
+
+  <Accordion title="Revenue numbers don't match Stripe">
+    Check:
+
+    1. **Webhook configuration:** Ensure webhooks are set up correctly
+    2. **Metadata:** Verify you're passing Databuddy IDs in Stripe metadata
+    3. **Currency conversion:** All amounts should be in cents (Stripe) vs dollars (display)
+    4. **Refunds:** Check if refunds are being tracked separately
+    5. **Test mode:** Ensure you're not mixing test and live mode data
+  </Accordion>
+
+  <Accordion title="Time zone differences">
+    Databuddy stores all timestamps in UTC. Your dashboard may show different times based on:
+
+    1. Your browser's time zone
+    2. Dashboard time zone settings
+    3. Query time zone parameters
+
+    When comparing with other systems, ensure you're using the same time zone.
+  </Accordion>
+</AccordionGroup>
+
+## Getting help
+
+If you're still experiencing issues:
+
+<Steps>
+  <Step title="Check the documentation">
+    Review:
+    - [Quickstart guide](/quickstart)
+    - [API reference](/api-reference)
+    - [Migration guide](/guides/migrating-from-ga)
+    - [Custom dashboards](/guides/custom-dashboards)
+  </Step>
+
+  <Step title="Enable debug mode">
+    ```tsx
+    <Databuddy debug />
+    ```
+    
+    Check browser console for detailed logs and error messages.
+  </Step>
+
+  <Step title="Test with minimal setup">
+    Create a simple test page with only Databuddy:
+
+    ```tsx
+    import { Databuddy } from '@databuddy/sdk/react';
+    import { track } from '@databuddy/sdk';
+
+    export default function Test() {
+      return (
+        <div>
+          <Databuddy debug />
+          <button onClick={() => track('test_click')}>
+            Test Event
+          </button>
+        </div>
+      );
+    }
+    ```
+
+    If this works, the issue is likely in your implementation.
+  </Step>
+
+  <Step title="Check service status">
+    Visit [status.databuddy.cc](https://status.databuddy.cc) to see if there are any ongoing issues.
+  </Step>
+
+  <Step title="Contact support">
+    Reach out with:
+    - Description of the issue
+    - Steps to reproduce
+    - Browser/framework versions
+    - Console logs (with debug mode enabled)
+    - Network tab screenshots
+
+    Email: support@databuddy.cc
+  </Step>
+</Steps>
+
+## Common error messages
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| `Invalid client ID` | Client ID is malformed or missing | Verify your client ID is a valid UUID |
+| `CORS error` | Domain not allowed | Add your domain in Databuddy settings |
+| `Rate limit exceeded` | Too many requests | Increase batch size or reduce event volume |
+| `Webhook signature invalid` | Wrong webhook secret | Update webhook secret in settings |
+| `Failed to send event` | Network error | Check API endpoint and connectivity |
+| `Tracker not available` | Script didn't load | Check for ad blockers, CSP, or script errors |
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="API Reference" icon="code" href="/api-reference">
+    Full SDK documentation and API details
+  </Card>
+  <Card title="Custom Dashboards" icon="chart-line" href="/guides/custom-dashboards">
+    Build custom analytics and reports
+  </Card>
+  <Card title="Webhooks" icon="webhook" href="/guides/webhooks">
+    Set up payment and event webhooks
+  </Card>
+  <Card title="Migration Guide" icon="arrow-right-arrow-left" href="/guides/migrating-from-ga">
+    Switch from Google Analytics
+  </Card>
+</CardGroup>

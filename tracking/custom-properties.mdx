@@ -1,0 +1,433 @@
+---
+title: Custom Properties
+description: Add custom data to events and understand valid property types
+---
+
+## Overview
+
+Custom properties allow you to attach additional context to events. Properties are key-value pairs that provide details about user actions, product attributes, transaction values, or any other relevant data.
+
+## Valid Property Types
+
+Databuddy supports the following JavaScript/TypeScript types for event properties:
+
+<CodeGroup>
+```typescript TypeScript
+type PropertyValue = string | number | boolean | null | undefined;
+type EventProperties = Record<string, PropertyValue>;
+```
+
+```javascript JavaScript
+// Valid property types:
+const properties = {
+  // Strings
+  name: 'Product Name',
+  category: 'electronics',
+  
+  // Numbers
+  price: 29.99,
+  quantity: 3,
+  
+  // Booleans
+  isPremium: true,
+  hasDiscount: false,
+  
+  // Null and undefined
+  couponCode: null,
+  referralSource: undefined
+};
+```
+</CodeGroup>
+
+<Warning>
+**Unsupported types:** Arrays, objects, functions, and symbols are not supported. Flatten nested data into separate properties.
+
+```typescript
+// Bad - nested object
+track('purchase', {
+  product: { id: '123', name: 'Widget' } // Don't do this
+});
+
+// Good - flattened properties
+track('purchase', {
+  productId: '123',
+  productName: 'Widget'
+});
+```
+</Warning>
+
+## Adding Properties to Events
+
+### Custom Events
+
+Add properties as the second argument to `track()`:
+
+```typescript
+import { track } from '@databuddy/sdk';
+
+track('purchase_completed', {
+  orderId: 'order-789',
+  total: 99.99,
+  currency: 'USD',
+  itemCount: 2,
+  paymentMethod: 'credit_card',
+  isFirstPurchase: true,
+  discountCode: null
+});
+```
+
+### Pageview Properties
+
+Add properties to `screenView()` calls:
+
+```typescript
+if (typeof window !== 'undefined') {
+  window.databuddy?.screenView({
+    section: 'dashboard',
+    viewMode: 'grid',
+    filtersActive: true,
+    resultCount: 42
+  });
+}
+```
+
+### Global Properties
+
+Set properties that will be attached to **all future events**:
+
+```typescript
+if (typeof window !== 'undefined') {
+  window.databuddy?.setGlobalProperties({
+    plan: 'enterprise',
+    region: 'us-west',
+    abTestVariant: 'checkout-v2',
+    userRole: 'admin'
+  });
+}
+```
+
+<Info>
+Global properties are merged with event-specific properties. If a property key exists in both, the event-specific value takes precedence.
+</Info>
+
+## Automatic Properties
+
+Databuddy automatically adds the following properties to all events:
+
+### Base Context
+
+<ResponseField name="path" type="string">
+  Full URL including origin, pathname, search, and hash.
+</ResponseField>
+
+<ResponseField name="title" type="string">
+  Document title from the `<title>` element.
+</ResponseField>
+
+<ResponseField name="referrer" type="string">
+  Previous page URL or `"direct"` if no referrer.
+</ResponseField>
+
+<ResponseField name="viewport_size" type="string">
+  Browser viewport dimensions (e.g., `"1920x1080"`).
+</ResponseField>
+
+<ResponseField name="timezone" type="string">
+  User's timezone (e.g., `"America/New_York"`).
+</ResponseField>
+
+<ResponseField name="language" type="string">
+  Browser language (e.g., `"en-US"`).
+</ResponseField>
+
+### UTM Parameters
+
+Marketing parameters are automatically extracted from the URL:
+
+<ResponseField name="utm_source" type="string">
+  Campaign source (e.g., `"google"`, `"newsletter"`).
+</ResponseField>
+
+<ResponseField name="utm_medium" type="string">
+  Marketing medium (e.g., `"cpc"`, `"email"`).
+</ResponseField>
+
+<ResponseField name="utm_campaign" type="string">
+  Campaign name (e.g., `"spring_sale_2024"`).
+</ResponseField>
+
+<ResponseField name="utm_term" type="string">
+  Paid search terms.
+</ResponseField>
+
+<ResponseField name="utm_content" type="string">
+  A/B test content identifier.
+</ResponseField>
+
+### Identity Properties
+
+<ResponseField name="anonymousId" type="string">
+  Persistent anonymous user identifier.
+</ResponseField>
+
+<ResponseField name="sessionId" type="string">
+  Current session identifier.
+</ResponseField>
+
+<ResponseField name="timestamp" type="number">
+  Event timestamp in milliseconds.
+</ResponseField>
+
+## Property Naming Conventions
+
+### Recommended Format
+
+Use **camelCase** for property keys to maintain consistency with JavaScript conventions:
+
+```typescript
+// Good
+track('form_submitted', {
+  formId: 'contact-form',
+  formType: 'contact',
+  fieldCount: 5,
+  validationErrors: 0
+});
+
+// Also acceptable (snake_case)
+track('form_submitted', {
+  form_id: 'contact-form',
+  form_type: 'contact',
+  field_count: 5,
+  validation_errors: 0
+});
+```
+
+### Reserved Prefixes
+
+Avoid using these prefixes for custom properties:
+
+- `__` (double underscore) - Reserved for internal properties
+- `utm_` - Reserved for UTM parameters
+- `did_` - Reserved for Databuddy internal use
+
+### Descriptive Names
+
+Choose property names that are self-explanatory:
+
+```typescript
+// Bad
+track('event', { t: 'user', v: 100 });
+
+// Good
+track('profile_updated', {
+  userType: 'premium',
+  profileCompleteness: 100
+});
+```
+
+## Common Property Patterns
+
+### E-commerce Properties
+
+```typescript
+import { track } from '@databuddy/sdk';
+
+track('product_viewed', {
+  productId: 'sku-123',
+  productName: 'Premium Widget',
+  category: 'widgets',
+  subcategory: 'premium',
+  price: 29.99,
+  currency: 'USD',
+  availability: 'in_stock',
+  brand: 'Acme',
+  sku: 'WGT-PRM-001'
+});
+
+track('cart_updated', {
+  action: 'add',
+  productId: 'sku-123',
+  quantity: 2,
+  cartTotal: 59.98,
+  cartItemCount: 3
+});
+```
+
+### User Properties
+
+```typescript
+import { track } from '@databuddy/sdk';
+
+track('signup_completed', {
+  signupMethod: 'email',
+  referralSource: 'organic',
+  plan: 'free',
+  industry: 'technology',
+  companySize: '11-50'
+});
+
+track('subscription_upgraded', {
+  previousPlan: 'starter',
+  newPlan: 'professional',
+  billingCycle: 'annual',
+  mrr: 99.00
+});
+```
+
+### Content Properties
+
+```typescript
+import { track } from '@databuddy/sdk';
+
+track('article_viewed', {
+  articleId: 'blog-123',
+  articleTitle: 'Getting Started Guide',
+  category: 'tutorials',
+  author: 'John Doe',
+  publishDate: '2024-01-15',
+  wordCount: 1500,
+  readingTime: 6
+});
+
+track('video_played', {
+  videoId: 'vid-456',
+  videoTitle: 'Product Demo',
+  duration: 180,
+  quality: '1080p',
+  isAutoplay: false
+});
+```
+
+### Feature Usage Properties
+
+```typescript
+import { track } from '@databuddy/sdk';
+
+track('feature_used', {
+  feature: 'export',
+  exportFormat: 'csv',
+  rowCount: 1500,
+  columns: 12,
+  includeHeaders: true,
+  processingTime: 2.3
+});
+
+track('search_performed', {
+  searchTerm: 'analytics dashboard',
+  resultCount: 42,
+  filterApplied: true,
+  sortOrder: 'relevance',
+  page: 1
+});
+```
+
+## Error Tracking
+
+Databuddy provides a convenience function for tracking errors with structured properties:
+
+```typescript
+import { trackError } from '@databuddy/sdk';
+
+try {
+  await riskyOperation();
+} catch (error) {
+  trackError(error.message, {
+    filename: error.fileName,
+    lineno: error.lineNumber,
+    colno: error.columnNumber,
+    stack: error.stack,
+    error_type: error.name,
+    context: 'checkout_flow',
+    userId: currentUser.id
+  });
+}
+```
+
+### Error Property Types
+
+```typescript
+function trackError(
+  message: string,
+  properties?: {
+    filename?: string;
+    lineno?: number;
+    colno?: number;
+    stack?: string;
+    error_type?: string;
+    [key: string]: string | number | boolean | null | undefined;
+  }
+): void
+```
+
+<Note>
+The `trackError()` function is a wrapper around `track('error', ...)` that provides better TypeScript types for error-specific properties.
+</Note>
+
+## Dynamic Properties
+
+### Computed Values
+
+```typescript
+import { track } from '@databuddy/sdk';
+
+const startTime = Date.now();
+
+// ... perform operation ...
+
+track('operation_completed', {
+  operation: 'data_export',
+  duration: Date.now() - startTime,
+  recordCount: records.length,
+  success: true
+});
+```
+
+### Conditional Properties
+
+```typescript
+import { track } from '@databuddy/sdk';
+
+track('checkout_initiated', {
+  cartValue: cart.total,
+  itemCount: cart.items.length,
+  ...(discount && { discountCode: discount.code, discountAmount: discount.amount }),
+  ...(user.isLoggedIn && { userId: user.id, membershipLevel: user.level })
+});
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Keep It Simple" icon="filter">
+    Only include properties that provide actionable insights. Avoid tracking every possible data point.
+  </Card>
+
+  <Card title="Use Consistent Types" icon="code">
+    Keep property types consistent across events. Don't use `orderId` as a number in one event and a string in another.
+  </Card>
+
+  <Card title="Avoid PII" icon="shield">
+    Don't track personally identifiable information (email, phone, address) in event properties unless necessary.
+  </Card>
+
+  <Card title="Document Your Events" icon="book">
+    Maintain a tracking plan that documents event names, properties, and their meanings for your team.
+  </Card>
+</CardGroup>
+
+## Property Limits
+
+<Warning>
+**Size Limits:**
+- Property keys: Maximum 256 characters
+- String values: Maximum 1024 characters
+- Total properties per event: Recommended maximum of 50
+
+Exceeding these limits may result in truncated data or dropped events.
+</Warning>
+
+## Related Documentation
+
+- [Custom Events](/tracking/events) - Track user actions
+- [User Identification](/tracking/user-identification) - Anonymous and session IDs
+- [Sessions](/tracking/sessions) - Session management

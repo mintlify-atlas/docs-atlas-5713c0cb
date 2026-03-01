@@ -1,0 +1,374 @@
+---
+title: 'Session Analytics'
+description: 'Query user session data, duration metrics, and session-based behavior patterns'
+---
+
+## Overview
+
+Session analytics help you understand how users interact with your website during individual visits. Track session duration, bounce rates, and session flow.
+
+## Query Types
+
+### Session Metrics
+
+Get aggregate session statistics including duration and bounce rate.
+
+**Query Type**: `session_metrics`
+
+```bash
+curl -X POST 'https://api.databuddy.com/v1/query?website_id=web_abc123' \
+  -H 'Authorization: Bearer db_key_...' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "parameters": ["session_metrics"],
+    "startDate": "2024-01-01",
+    "endDate": "2024-01-31"
+  }'
+```
+
+**Response Fields**:
+
+<ResponseField name="total_sessions" type="number">
+  Total number of sessions in the period.
+</ResponseField>
+
+<ResponseField name="avg_session_duration" type="number">
+  Average session duration in seconds.
+</ResponseField>
+
+<ResponseField name="bounce_rate" type="number">
+  Percentage of single-page sessions (0-100).
+</ResponseField>
+
+<ResponseField name="total_events" type="number">
+  Total events across all sessions.
+</ResponseField>
+
+### Session Duration Distribution
+
+Analyze how session durations are distributed across time ranges.
+
+**Query Type**: `session_duration_distribution`
+
+```bash
+curl -X POST 'https://api.databuddy.com/v1/query?website_id=web_abc123' \
+  -H 'Authorization: Bearer db_key_...' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "parameters": ["session_duration_distribution"],
+    "preset": "last_30d"
+  }'
+```
+
+**Response Fields**:
+
+<ResponseField name="duration_range" type="string">
+  Duration bucket: `0-30s`, `30s-1m`, `1m-5m`, `5m-15m`, `15m-1h`, or `1h+`.
+</ResponseField>
+
+<ResponseField name="sessions" type="number">
+  Number of sessions in this duration range.
+</ResponseField>
+
+<ResponseField name="visitors" type="number">
+  Unique visitors with sessions in this range.
+</ResponseField>
+
+### Sessions by Device
+
+Breakdown of sessions by device type.
+
+**Query Type**: `sessions_by_device`
+
+```bash
+curl -X POST 'https://api.databuddy.com/v1/query?website_id=web_abc123' \
+  -H 'Authorization: Bearer db_key_...' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "parameters": ["sessions_by_device"],
+    "preset": "last_7d"
+  }'
+```
+
+**Response Fields**:
+
+<ResponseField name="name" type="string">
+  Device type: `desktop`, `mobile`, or `tablet`.
+</ResponseField>
+
+<ResponseField name="sessions" type="number">
+  Number of sessions from this device type.
+</ResponseField>
+
+<ResponseField name="visitors" type="number">
+  Unique visitors using this device.
+</ResponseField>
+
+<ResponseField name="avg_session_duration" type="number">
+  Average session duration in seconds for this device.
+</ResponseField>
+
+### Sessions by Browser
+
+Breakdown of sessions by browser.
+
+**Query Type**: `sessions_by_browser`
+
+```bash
+curl -X POST 'https://api.databuddy.com/v1/query?website_id=web_abc123' \
+  -H 'Authorization: Bearer db_key_...' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "parameters": ["sessions_by_browser"],
+    "preset": "last_30d",
+    "limit": 20
+  }'
+```
+
+**Response Fields**:
+
+<ResponseField name="name" type="string">
+  Browser name (e.g., `Chrome`, `Safari`, `Firefox`).
+</ResponseField>
+
+<ResponseField name="sessions" type="number">
+  Number of sessions from this browser.
+</ResponseField>
+
+<ResponseField name="visitors" type="number">
+  Unique visitors using this browser.
+</ResponseField>
+
+<ResponseField name="avg_session_duration" type="number">
+  Average session duration in seconds for this browser.
+</ResponseField>
+
+### Sessions Time Series
+
+Track session metrics over time to identify trends.
+
+**Query Type**: `sessions_time_series`
+
+```bash
+curl -X POST 'https://api.databuddy.com/v1/query?website_id=web_abc123' \
+  -H 'Authorization: Bearer db_key_...' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "parameters": [
+      {
+        "name": "sessions_time_series",
+        "granularity": "daily"
+      }
+    ],
+    "startDate": "2024-01-01",
+    "endDate": "2024-01-31"
+  }'
+```
+
+**Response Fields**:
+
+<ResponseField name="date" type="string">
+  Date of the data point (YYYY-MM-DD).
+</ResponseField>
+
+<ResponseField name="sessions" type="number">
+  Number of sessions on this date.
+</ResponseField>
+
+<ResponseField name="visitors" type="number">
+  Unique visitors on this date.
+</ResponseField>
+
+<ResponseField name="avg_session_duration" type="number">
+  Average session duration in seconds.
+</ResponseField>
+
+### Session Flow
+
+Analyze which pages are most commonly visited during sessions.
+
+**Query Type**: `session_flow`
+
+```bash
+curl -X POST 'https://api.databuddy.com/v1/query?website_id=web_abc123' \
+  -H 'Authorization: Bearer db_key_...' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "parameters": ["session_flow"],
+    "preset": "last_7d",
+    "limit": 50
+  }'
+```
+
+**Response Fields**:
+
+<ResponseField name="name" type="string">
+  Page path.
+</ResponseField>
+
+<ResponseField name="sessions" type="number">
+  Number of sessions that included this page.
+</ResponseField>
+
+<ResponseField name="visitors" type="number">
+  Unique visitors who viewed this page.
+</ResponseField>
+
+### Session List
+
+Retrieve detailed information about individual sessions including all events.
+
+**Query Type**: `session_list`
+
+```bash
+curl -X POST 'https://api.databuddy.com/v1/query?website_id=web_abc123' \
+  -H 'Authorization: Bearer db_key_...' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "parameters": ["session_list"],
+    "preset": "today",
+    "limit": 25,
+    "page": 1
+  }'
+```
+
+**Response Fields**:
+
+<ResponseField name="session_id" type="string">
+  Unique session identifier.
+</ResponseField>
+
+<ResponseField name="first_visit" type="string">
+  Timestamp of first event in session.
+</ResponseField>
+
+<ResponseField name="last_visit" type="string">
+  Timestamp of last event in session.
+</ResponseField>
+
+<ResponseField name="page_views" type="number">
+  Number of page views in this session.
+</ResponseField>
+
+<ResponseField name="visitor_id" type="string">
+  Anonymous visitor identifier.
+</ResponseField>
+
+<ResponseField name="country" type="string">
+  Visitor's country code.
+</ResponseField>
+
+<ResponseField name="referrer" type="string">
+  Session referrer URL.
+</ResponseField>
+
+<ResponseField name="device_type" type="string">
+  Device type used in session.
+</ResponseField>
+
+<ResponseField name="browser_name" type="string">
+  Browser name.
+</ResponseField>
+
+<ResponseField name="os_name" type="string">
+  Operating system name.
+</ResponseField>
+
+<ResponseField name="events" type="array">
+  Array of all events in the session, including custom events. Each event contains:
+  - `id`: Event ID
+  - `time`: Event timestamp
+  - `event_name`: Event name
+  - `path`: Page path
+  - `properties`: Event properties (if any)
+</ResponseField>
+
+**Example Response**:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "parameter": "session_list",
+      "success": true,
+      "data": [
+        {
+          "session_id": "sess_abc123",
+          "first_visit": "2024-01-15T10:30:00Z",
+          "last_visit": "2024-01-15T10:45:00Z",
+          "page_views": 5,
+          "visitor_id": "vis_xyz789",
+          "country": "US",
+          "referrer": "https://google.com",
+          "device_type": "desktop",
+          "browser_name": "Chrome",
+          "os_name": "Windows",
+          "events": [
+            ["evt_1", "2024-01-15T10:30:00Z", "screen_view", "/home", null],
+            ["evt_2", "2024-01-15T10:32:15Z", "screen_view", "/products", null],
+            ["evt_3", "2024-01-15T10:35:30Z", "button_click", "/products", "{\"button_id\":\"add_to_cart\"}"],
+            ["evt_4", "2024-01-15T10:40:00Z", "screen_view", "/cart", null],
+            ["evt_5", "2024-01-15T10:45:00Z", "page_exit", "/cart", null]
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+## Session Definition
+
+A session in Databuddy is defined as:
+
+- A sequence of events from the same visitor
+- Sessions timeout after 30 minutes of inactivity
+- A new session starts when:
+  - The visitor returns after 30+ minutes
+  - UTM parameters change
+  - The referrer changes (external traffic)
+
+## Bounce Rate Calculation
+
+Bounce rate represents non-engaged sessions. A session is considered a bounce if:
+
+- Only one pageview occurs, AND
+- Session duration is less than 10 seconds, AND
+- No custom events or interactions occur
+
+This definition focuses on meaningful engagement rather than raw single-page visits.
+
+## Filter Example
+
+Get mobile sessions from organic traffic:
+
+```bash
+curl -X POST 'https://api.databuddy.com/v1/query?website_id=web_abc123' \
+  -H 'Authorization: Bearer db_key_...' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "parameters": ["session_metrics", "sessions_by_browser"],
+    "preset": "last_30d",
+    "filters": [
+      {
+        "field": "device_type",
+        "op": "eq",
+        "value": "mobile"
+      },
+      {
+        "field": "utm_medium",
+        "op": "eq",
+        "value": "organic"
+      }
+    ]
+  }'
+```
+
+## Notes
+
+- Session data includes both pageview events and custom events
+- The `session_list` query merges data from both the events table and custom_events table
+- Session attribution automatically applies UTM parameters from the first pageview to all session events
+- Duration is calculated from actual time spent on pages (excluding page_exit events)
+- Very short sessions (under 1 second) and very long outliers (over 1 hour) are filtered from averages

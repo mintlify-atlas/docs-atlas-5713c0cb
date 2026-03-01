@@ -1,0 +1,389 @@
+---
+title: 'Query Events'
+api: 'POST /v1/query'
+description: 'Query and analyze event data with flexible filtering and aggregation'
+---
+
+The query endpoint provides powerful analytics capabilities for querying event data with support for multiple metrics, date ranges, filters, and time-based aggregations.
+
+## Authentication
+
+This endpoint requires authentication via:
+
+1. **API Key**: Include in the `Authorization` header. The API key must have the `read:data` scope.
+2. **Session**: User must be authenticated and have access to the specified project.
+
+## Request
+
+### Headers
+
+<ParamField header="Authorization" type="string" optional>
+  Bearer token with your API key (if using API key authentication)
+</ParamField>
+
+<ParamField header="Content-Type" type="string" required>
+  Must be `application/json`
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="website_id" type="string" optional>
+  UUID of the website to query data for
+</ParamField>
+
+<ParamField query="schedule_id" type="string" optional>
+  UUID of the uptime monitor schedule to query
+</ParamField>
+
+<ParamField query="link_id" type="string" optional>
+  UUID of the short link to query
+</ParamField>
+
+<ParamField query="organization_id" type="string" optional>
+  UUID of the organization for org-level queries
+</ParamField>
+
+<ParamField query="timezone" type="string" optional>
+  Timezone for date calculations (e.g., "America/New_York", "UTC"). Defaults to UTC.
+</ParamField>
+
+### Body Parameters
+
+<ParamField body="id" type="string" optional>
+  Unique identifier for this query request
+</ParamField>
+
+<ParamField body="parameters" type="array" required>
+  Array of query types to execute. Can be strings (e.g., `"page_views"`) or objects with additional config:
+  - `name` (string, required): Query type name
+  - `id` (string, optional): Custom identifier for this parameter
+  - `start_date` (string, optional): Override start date for this parameter
+  - `end_date` (string, optional): Override end date for this parameter
+  - `granularity` (string, optional): Time granularity ("hourly" or "daily")
+</ParamField>
+
+<ParamField body="preset" type="string" optional>
+  Date range preset. Options: `today`, `yesterday`, `last_7_days`, `last_30_days`, `last_90_days`, `this_month`, `last_month`, `this_year`
+</ParamField>
+
+<ParamField body="startDate" type="string" optional>
+  Start date in YYYY-MM-DD format or ISO datetime. Required if no preset provided.
+</ParamField>
+
+<ParamField body="endDate" type="string" optional>
+  End date in YYYY-MM-DD format or ISO datetime. Required if no preset provided.
+</ParamField>
+
+<ParamField body="granularity" type="string" optional>
+  Time granularity for aggregation: `"hourly"` or `"daily"`. Hourly limited to 30 days max.
+</ParamField>
+
+<ParamField body="filters" type="array" optional>
+  Array of filter objects to apply:
+  - `field` (string): Field to filter on (e.g., "path", "country", "browser")
+  - `operator` (string): Filter operator ("eq", "ne", "contains", "not_contains", etc.)
+  - `value` (string | number | array): Filter value
+</ParamField>
+
+<ParamField body="limit" type="number" optional>
+  Maximum number of results per parameter (1-10000). Default: 100
+</ParamField>
+
+<ParamField body="page" type="number" optional>
+  Page number for pagination (1-based). Default: 1
+</ParamField>
+
+## Response
+
+<ResponseField name="success" type="boolean">
+  Whether the query executed successfully
+</ResponseField>
+
+<ResponseField name="requestId" type="string">
+  Unique identifier for this request
+</ResponseField>
+
+<ResponseField name="queryId" type="string">
+  Query ID from the request (if provided)
+</ResponseField>
+
+<ResponseField name="data" type="array">
+  Array of result objects, one per parameter:
+  - `parameter` (string): Parameter name or ID
+  - `success` (boolean): Whether this specific query succeeded
+  - `data` (array): Result rows
+  - `error` (string, optional): Error message if failed
+</ResponseField>
+
+<ResponseField name="meta" type="object">
+  Query metadata:
+  - `parameters` (array): Original parameters from request
+  - `total_parameters` (number): Number of parameters queried
+  - `page` (number): Current page number
+  - `limit` (number): Results per page
+  - `filters_applied` (number): Number of filters applied
+</ResponseField>
+
+## Available Query Types
+
+To get a list of all available query types and their configurations:
+
+```bash
+curl https://api.databuddy.io/v1/query/types
+```
+
+Common query types include:
+- `page_views` - Total page views
+- `visitors` - Unique visitors
+- `sessions` - Session count
+- `bounce_rate` - Bounce rate percentage
+- `pages` - Top pages
+- `referrers` - Top referrers
+- `countries` - Traffic by country
+- `browsers` - Browser distribution
+- `devices` - Device types
+- `events` - Custom event tracking
+
+## Examples
+
+### Single Query with Preset
+
+```bash
+curl -X POST 'https://api.databuddy.io/v1/query?website_id=550e8400-e29b-41d4-a716-446655440000' \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "parameters": ["page_views", "visitors"],
+    "preset": "last_7_days"
+  }'
+```
+
+```json Response
+{
+  "success": true,
+  "requestId": "req_abc123",
+  "queryId": "",
+  "data": [
+    {
+      "parameter": "page_views",
+      "success": true,
+      "data": [
+        {
+          "date": "2024-03-01",
+          "value": 1250
+        },
+        {
+          "date": "2024-03-02",
+          "value": 1430
+        }
+      ]
+    },
+    {
+      "parameter": "visitors",
+      "success": true,
+      "data": [
+        {
+          "date": "2024-03-01",
+          "value": 845
+        },
+        {
+          "date": "2024-03-02",
+          "value": 923
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "parameters": ["page_views", "visitors"],
+    "total_parameters": 2,
+    "page": 1,
+    "limit": 100,
+    "filters_applied": 0
+  }
+}
+```
+
+### Custom Date Range with Filters
+
+```bash
+curl -X POST 'https://api.databuddy.io/v1/query?website_id=550e8400-e29b-41d4-a716-446655440000&timezone=America/New_York' \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "parameters": ["pages"],
+    "startDate": "2024-03-01",
+    "endDate": "2024-03-07",
+    "filters": [
+      {
+        "field": "country",
+        "operator": "eq",
+        "value": "US"
+      }
+    ],
+    "limit": 10
+  }'
+```
+
+```json Response
+{
+  "success": true,
+  "requestId": "req_xyz789",
+  "queryId": "",
+  "data": [
+    {
+      "parameter": "pages",
+      "success": true,
+      "data": [
+        {
+          "path": "/home",
+          "views": 4523,
+          "visitors": 3201
+        },
+        {
+          "path": "/pricing",
+          "views": 2341,
+          "visitors": 1876
+        },
+        {
+          "path": "/features",
+          "views": 1987,
+          "visitors": 1543
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "parameters": ["pages"],
+    "total_parameters": 1,
+    "page": 1,
+    "limit": 10,
+    "filters_applied": 1
+  }
+}
+```
+
+### Hourly Granularity
+
+```bash
+curl -X POST 'https://api.databuddy.io/v1/query?website_id=550e8400-e29b-41d4-a716-446655440000' \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "parameters": ["page_views"],
+    "startDate": "2024-03-01",
+    "endDate": "2024-03-02",
+    "granularity": "hourly"
+  }'
+```
+
+### Batch Query with Multiple Requests
+
+```bash
+curl -X POST 'https://api.databuddy.io/v1/query?website_id=550e8400-e29b-41d4-a716-446655440000' \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '[
+    {
+      "id": "query_1",
+      "parameters": ["page_views"],
+      "preset": "today"
+    },
+    {
+      "id": "query_2",
+      "parameters": ["visitors"],
+      "preset": "yesterday"
+    }
+  ]'
+```
+
+```json Response
+{
+  "success": true,
+  "requestId": "req_batch123",
+  "batch": true,
+  "results": [
+    {
+      "queryId": "query_1",
+      "data": [
+        {
+          "parameter": "page_views",
+          "success": true,
+          "data": [...]
+        }
+      ],
+      "meta": {...}
+    },
+    {
+      "queryId": "query_2",
+      "data": [
+        {
+          "parameter": "visitors",
+          "success": true,
+          "data": [...]
+        }
+      ],
+      "meta": {...}
+    }
+  ]
+}
+```
+
+## Error Responses
+
+### Authentication Required
+
+```json
+{
+  "success": false,
+  "error": "Authentication required",
+  "code": "AUTH_REQUIRED",
+  "requestId": "req_abc123"
+}
+```
+
+### Access Denied
+
+```json
+{
+  "success": false,
+  "error": "Access denied to this website",
+  "code": "ACCESS_DENIED",
+  "requestId": "req_abc123"
+}
+```
+
+### Validation Error
+
+```json
+{
+  "success": false,
+  "error": "Unknown query type: pageviews. Did you mean 'page_views'?",
+  "code": "VALIDATION_ERROR",
+  "requestId": "req_abc123",
+  "details": [
+    {
+      "field": "parameters[0]",
+      "message": "Unknown query type: pageviews",
+      "suggestion": "Did you mean 'page_views'?"
+    }
+  ]
+}
+```
+
+### Missing Project ID
+
+```json
+{
+  "success": false,
+  "error": "Missing project identifier (website_id, schedule_id, link_id, or organization_id)",
+  "code": "MISSING_PROJECT_ID",
+  "requestId": "req_abc123"
+}
+```
+
+## Related Endpoints
+
+- `GET /v1/query/websites` - List accessible websites
+- `GET /v1/query/types` - Get available query types and configurations
+- `POST /v1/query/compile` - Compile a query to SQL without executing
+- `POST /v1/query/custom` - Execute custom SQL-like queries

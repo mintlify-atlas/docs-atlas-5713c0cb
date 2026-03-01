@@ -1,0 +1,326 @@
+---
+title: 'Pageview Analytics'
+description: 'Query pageview data, top pages, entry/exit pages, and page performance metrics'
+---
+
+## Overview
+
+Pageview analytics provide insights into which pages users visit, how they navigate through your site, and how long they spend on each page.
+
+## Query Types
+
+### Top Pages
+
+Get the most visited pages ranked by pageviews and visitors.
+
+**Query Type**: `top_pages`
+
+```bash
+curl -X POST 'https://api.databuddy.com/v1/query?website_id=web_abc123' \
+  -H 'Authorization: Bearer db_key_...' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "parameters": ["top_pages"],
+    "startDate": "2024-01-01",
+    "endDate": "2024-01-31",
+    "limit": 20
+  }'
+```
+
+**Response Fields**:
+
+<ResponseField name="name" type="string">
+  The page path (e.g., `/home`, `/about`).
+</ResponseField>
+
+<ResponseField name="pageviews" type="number">
+  Total number of page views.
+</ResponseField>
+
+<ResponseField name="visitors" type="number">
+  Number of unique visitors to this page.
+</ResponseField>
+
+<ResponseField name="percentage" type="number">
+  Percentage of total traffic (0-100).
+</ResponseField>
+
+**Example Response**:
+
+```json
+{
+  "success": true,
+  "requestId": "req_abc123",
+  "data": [
+    {
+      "parameter": "top_pages",
+      "success": true,
+      "data": [
+        {
+          "name": "/home",
+          "pageviews": 1234,
+          "visitors": 456,
+          "percentage": 12.5
+        },
+        {
+          "name": "/about",
+          "pageviews": 987,
+          "visitors": 321,
+          "percentage": 10.2
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "parameters": ["top_pages"],
+    "total_parameters": 1,
+    "page": 1,
+    "limit": 20,
+    "filters_applied": 0
+  }
+}
+```
+
+### Entry Pages
+
+Analyze which pages users first land on when visiting your site.
+
+**Query Type**: `entry_pages`
+
+```bash
+curl -X POST 'https://api.databuddy.com/v1/query?website_id=web_abc123' \
+  -H 'Authorization: Bearer db_key_...' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "parameters": ["entry_pages"],
+    "preset": "last_30d",
+    "limit": 25
+  }'
+```
+
+**Response Fields**:
+
+<ResponseField name="name" type="string">
+  The entry page path.
+</ResponseField>
+
+<ResponseField name="pageviews" type="number">
+  Number of sessions that started on this page.
+</ResponseField>
+
+<ResponseField name="visitors" type="number">
+  Unique visitors who entered through this page.
+</ResponseField>
+
+<ResponseField name="percentage" type="number">
+  Percentage of total entry traffic.
+</ResponseField>
+
+### Exit Pages
+
+Identify pages where users most commonly leave your site.
+
+**Query Type**: `exit_pages`
+
+```bash
+curl -X POST 'https://api.databuddy.com/v1/query?website_id=web_abc123' \
+  -H 'Authorization: Bearer db_key_...' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "parameters": ["exit_pages"],
+    "startDate": "2024-01-01",
+    "endDate": "2024-01-31",
+    "limit": 25
+  }'
+```
+
+**Response Fields**:
+
+<ResponseField name="name" type="string">
+  The exit page path.
+</ResponseField>
+
+<ResponseField name="pageviews" type="number">
+  Number of sessions that ended on this page.
+</ResponseField>
+
+<ResponseField name="visitors" type="number">
+  Unique visitors who exited from this page.
+</ResponseField>
+
+<ResponseField name="percentage" type="number">
+  Percentage of total exit traffic.
+</ResponseField>
+
+### Page Performance
+
+Analyze average time spent on each page along with visitor counts.
+
+**Query Type**: `page_performance`
+
+```bash
+curl -X POST 'https://api.databuddy.com/v1/query?website_id=web_abc123' \
+  -H 'Authorization: Bearer db_key_...' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "parameters": ["page_performance"],
+    "preset": "last_7d"
+  }'
+```
+
+**Response Fields**:
+
+<ResponseField name="name" type="string">
+  The page path.
+</ResponseField>
+
+<ResponseField name="pageviews" type="number">
+  Total page views.
+</ResponseField>
+
+<ResponseField name="avg_time_on_page" type="number">
+  Average time spent on page in seconds.
+</ResponseField>
+
+<ResponseField name="visitors" type="number">
+  Unique visitors.
+</ResponseField>
+
+### Page Time Analysis
+
+Detailed analysis of time spent on pages with median time calculations and quality filters.
+
+**Query Type**: `page_time_analysis`
+
+```bash
+curl -X POST 'https://api.databuddy.com/v1/query?website_id=web_abc123' \
+  -H 'Authorization: Bearer db_key_...' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "parameters": ["page_time_analysis"],
+    "startDate": "2024-01-01",
+    "endDate": "2024-01-31",
+    "limit": 50
+  }'
+```
+
+**Response Fields**:
+
+<ResponseField name="name" type="string">
+  The page path.
+</ResponseField>
+
+<ResponseField name="sessions_with_time" type="number">
+  Number of sessions with valid time measurements (excludes bounces and outliers).
+</ResponseField>
+
+<ResponseField name="visitors" type="number">
+  Unique visitors with time data.
+</ResponseField>
+
+<ResponseField name="median_time_on_page" type="number">
+  Median time spent on page in seconds (more reliable than average).
+</ResponseField>
+
+<ResponseField name="percentage" type="number">
+  Percentage of total visitors.
+</ResponseField>
+
+## Filters
+
+Pageview queries support the following filters:
+
+<ParamField body="path" type="string">
+  Filter by page path (supports `contains`, `starts_with`, etc.).
+</ParamField>
+
+<ParamField body="query_string" type="string">
+  Filter by URL query parameters.
+</ParamField>
+
+<ParamField body="country" type="string">
+  Filter by visitor country code (e.g., `US`, `GB`).
+</ParamField>
+
+<ParamField body="device_type" type="string">
+  Filter by device type (`desktop`, `mobile`, `tablet`).
+</ParamField>
+
+<ParamField body="browser_name" type="string">
+  Filter by browser (e.g., `Chrome`, `Safari`, `Firefox`).
+</ParamField>
+
+<ParamField body="os_name" type="string">
+  Filter by operating system.
+</ParamField>
+
+<ParamField body="referrer" type="string">
+  Filter by referrer URL.
+</ParamField>
+
+<ParamField body="utm_source" type="string">
+  Filter by UTM source parameter.
+</ParamField>
+
+<ParamField body="utm_medium" type="string">
+  Filter by UTM medium parameter.
+</ParamField>
+
+<ParamField body="utm_campaign" type="string">
+  Filter by UTM campaign parameter.
+</ParamField>
+
+## Filter Example
+
+Get top pages for US mobile visitors:
+
+```bash
+curl -X POST 'https://api.databuddy.com/v1/query?website_id=web_abc123' \
+  -H 'Authorization: Bearer db_key_...' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "parameters": ["top_pages"],
+    "preset": "last_30d",
+    "filters": [
+      {
+        "field": "country",
+        "op": "eq",
+        "value": "US"
+      },
+      {
+        "field": "device_type",
+        "op": "eq",
+        "value": "mobile"
+      }
+    ],
+    "limit": 10
+  }'
+```
+
+## Combined Query Example
+
+Get multiple pageview metrics in a single request:
+
+```bash
+curl -X POST 'https://api.databuddy.com/v1/query?website_id=web_abc123' \
+  -H 'Authorization: Bearer db_key_...' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "parameters": [
+      "top_pages",
+      "entry_pages",
+      "exit_pages",
+      "page_time_analysis"
+    ],
+    "preset": "last_7d",
+    "limit": 20
+  }'
+```
+
+## Notes
+
+- Page paths are automatically normalized (trailing slashes removed, decoded)
+- Root path is represented as `/`
+- Time calculations exclude invalid data (bounces, very short visits, or outliers over 1 hour)
+- Median time is generally more reliable than average for time analysis
+- Session attribution automatically applies UTM parameters and referrer data to all pages in a session

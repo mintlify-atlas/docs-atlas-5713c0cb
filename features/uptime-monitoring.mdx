@@ -1,0 +1,475 @@
+---
+title: Uptime Monitoring
+description: Monitor website availability, performance, and SSL certificates with scheduled health checks
+---
+
+Databuddy's uptime monitoring continuously checks your website's availability and performance. Get alerted to downtime, track response times, and monitor SSL certificate expiration.
+
+## What is Uptime Monitoring?
+
+Uptime monitoring performs regular health checks on your websites:
+
+- **HTTP checks**: Verify your site responds correctly
+- **Response time tracking**: Monitor TTFB and total request time
+- **SSL certificate monitoring**: Track expiration dates
+- **Status code validation**: Ensure proper HTTP responses
+- **Geographic probing**: Checks from multiple regions
+- **Downtime detection**: Alert on failures and outages
+
+## How It Works
+
+Databuddy uses QStash (by Upstash) for distributed scheduling:
+
+1. **Schedule creation**: You define check frequency and URL
+2. **Distributed execution**: QStash triggers checks from edge locations
+3. **HTTP probe**: Databuddy's uptime service fetches your URL
+4. **Data collection**: Records response time, status, SSL info
+5. **Event streaming**: Sends results to Kafka → ClickHouse
+6. **Analytics**: View uptime metrics in dashboard
+
+<Info>
+Uptime checks are performed from different geographic regions to detect regional outages.
+</Info>
+
+## Setting Up Monitors
+
+### Via Dashboard
+
+1. Navigate to **Uptime** in the sidebar
+2. Click **Create Monitor**
+3. Enter the URL to monitor
+4. Configure check settings
+5. Click **Create**
+
+### Monitor Configuration
+
+| Field | Description | Default |
+|-------|-------------|--------|
+| URL | Website URL to monitor | Required |
+| Check Interval | How often to check (minutes) | 5 minutes |
+| Timeout | Max time to wait for response (ms) | 30,000 ms |
+| Cache Bust | Add random query param to prevent caching | false |
+| Website ID | Link to analytics website | Optional |
+
+### Example: Basic Monitor
+
+```json
+{
+  "url": "https://example.com",
+  "checkInterval": 5,
+  "timeout": 30000,
+  "cacheBust": false
+}
+```
+
+Checks `example.com` every 5 minutes.
+
+### Example: Advanced Monitor
+
+```json
+{
+  "url": "https://api.example.com/health",
+  "checkInterval": 1,
+  "timeout": 10000,
+  "cacheBust": true,
+  "websiteId": "website-123"
+}
+```
+
+Checks API endpoint every minute with cache busting enabled.
+
+## Check Intervals
+
+Choose how frequently to monitor:
+
+- **1 minute**: Critical services, APIs
+- **5 minutes**: Standard websites (recommended)
+- **15 minutes**: Low-priority sites
+- **30 minutes**: Backup monitoring
+- **1 hour**: Cost-effective monitoring
+
+<Tip>
+More frequent checks provide faster downtime detection but consume more resources. Balance based on your SLA requirements.
+</Tip>
+
+## Timeout Configuration
+
+Set maximum wait time for responses:
+
+- **10 seconds**: Fast APIs, CDN-backed sites
+- **30 seconds**: Default (recommended)
+- **60 seconds**: Slow backends, heavy pages
+
+Requests exceeding the timeout are marked as failures.
+
+## Cache Busting
+
+Prevent false positives from cached responses:
+
+- **Disabled** (default): Standard checks
+- **Enabled**: Adds `?_cb=<random>` to URL
+
+Enable for:
+
+- CDN-cached pages
+- Aggressive browser caching
+- Testing origin server health
+
+Disable for:
+
+- Standard monitoring
+- APIs that don't cache
+- Conserving bandwidth
+
+## Monitored Metrics
+
+Each check records:
+
+### Response Metrics
+
+- **HTTP Status Code**: 200, 404, 500, etc.
+- **TTFB (Time to First Byte)**: Server response time in ms
+- **Total Time**: Complete request duration in ms
+- **Response Size**: Bytes received
+- **Content Hash**: SHA-256 hash for change detection
+
+### SSL Metrics
+
+- **Certificate Expiry**: Unix timestamp of expiration
+- **Certificate Valid**: Boolean indicating validity
+
+### Network Metrics
+
+- **Redirect Count**: Number of HTTP redirects followed
+- **Probe Region**: Geographic location of check
+- **Probe IP**: IP address of monitoring probe
+
+### Status
+
+- **UP**: Successful check (2xx or 3xx status)
+- **DOWN**: Failed check (4xx, 5xx, timeout, or network error)
+
+<Note>
+Databuddy follows up to 10 redirects automatically. Redirect loops are detected and marked as failures.
+</Note>
+
+## SSL Certificate Monitoring
+
+Automatic SSL/TLS certificate tracking:
+
+### Certificate Checks
+
+- **Expiration date**: When certificate expires
+- **Validity**: Whether certificate is currently valid
+- **Issuer**: Certificate authority (extracted from cert)
+
+### Expiration Alerts
+
+Get notified before certificates expire:
+
+- 30 days before expiration
+- 14 days before expiration
+- 7 days before expiration
+- Day of expiration
+
+<Warning>
+Expired SSL certificates cause browser warnings and lost traffic. Monitor expiration closely.
+</Warning>
+
+## HTTP Status Handling
+
+### Success (UP)
+
+- **2xx**: OK (200, 201, 204, etc.)
+- **3xx**: Redirects (301, 302, 307, 308)
+
+Redirects are followed automatically (up to 10 hops).
+
+### Failure (DOWN)
+
+- **4xx**: Client errors (404, 403, etc.)
+- **5xx**: Server errors (500, 502, 503, etc.)
+- **0**: Timeout or network error
+
+## Viewing Uptime Data
+
+### Monitor Dashboard
+
+View all monitors:
+
+- Current status (UP/DOWN)
+- Last check time
+- Uptime percentage (24h, 7d, 30d)
+- Average response time
+- Recent incidents
+
+### Monitor Details
+
+Drill down into individual monitors:
+
+- **Uptime graph**: Visual timeline of status
+- **Response time chart**: TTFB and total time trends
+- **Incident history**: Downtime events with duration
+- **SSL status**: Certificate expiration countdown
+- **Geographic performance**: Response times by region
+
+### Metrics Over Time
+
+Analyze trends:
+
+- **Hourly**: Last 24-48 hours
+- **Daily**: Last 30-90 days
+- **Weekly**: Last 6-12 months
+
+## Content Change Detection
+
+Monitor for unexpected page changes:
+
+- **Content hash**: SHA-256 hash of response body
+- **Change detection**: Alerts when hash changes
+- **False positive filtering**: Ignore dynamic timestamps, ads
+
+Use cases:
+
+- Detect defacement
+- Monitor for unauthorized changes
+- Track deployment success
+
+## JSON Response Parsing
+
+Monitor API responses with custom validation:
+
+### JSON Parsing Config
+
+Extract specific JSON fields:
+
+```json
+{
+  "jsonParsingConfig": {
+    "enabled": true,
+    "path": "$.data.status",
+    "expectedValue": "healthy"
+  }
+}
+```
+
+This checks that `response.data.status === "healthy"`.
+
+### Use Cases
+
+- API health endpoints
+- Microservice status pages
+- Custom validation logic
+- Extract metrics from responses
+
+<Tip>
+JSON parsing lets you monitor API health beyond just HTTP status codes.
+</Tip>
+
+## Failure Handling
+
+### Retry Logic
+
+Failed checks are retried:
+
+1. Initial check fails
+2. Wait 30 seconds
+3. Retry (up to 3 times)
+4. Mark as DOWN if all retries fail
+
+This prevents false alarms from transient network issues.
+
+### Failure Streaks
+
+Track consecutive failures:
+
+- **Streak count**: Number of consecutive DOWN checks
+- **Alert threshold**: Notify after 2-3 consecutive failures
+- **Recovery**: Streak resets on first UP check
+
+## Infrastructure
+
+Databuddy's uptime service architecture:
+
+- **Runtime**: Bun + Elysia
+- **Scheduler**: Upstash QStash (distributed cron)
+- **Database**: PostgreSQL (monitor configs)
+- **Analytics**: Kafka + ClickHouse (check results)
+- **Observability**: OpenTelemetry → Axiom
+
+### Request Flow
+
+```
+QStash schedule trigger
+  ↓
+Uptime service receives webhook
+  ↓
+Verify QStash signature
+  ↓
+Lookup monitor config (PostgreSQL)
+  ↓
+Perform HTTP check with timeout
+  ↓
+Check SSL certificate (if HTTPS)
+  ↓
+Get probe metadata (IP, region)
+  ↓
+Send event to Kafka
+  ↓
+ClickHouse ingestion
+  ↓
+Dashboard analytics
+```
+
+## Security
+
+### Webhook Verification
+
+QStash webhooks are cryptographically verified:
+
+```typescript
+const isValid = await receiver.verify({
+  body,
+  signature,
+  url: process.env.UPTIME_URL
+})
+```
+
+Unverified requests are rejected with 401.
+
+### Request Headers
+
+Uptime checks use realistic browser headers:
+
+```
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) ...
+Accept: text/html,application/xhtml+xml,...
+Accept-Encoding: gzip, deflate, br
+Cache-Control: no-cache
+```
+
+This ensures compatibility with sites that block bots.
+
+### Compression Support
+
+Automatic response decompression:
+
+- Tries `gzip, deflate, br` first
+- Falls back to `gzip, deflate` on encoding errors
+- Handles corrupt compression gracefully
+
+## Best Practices
+
+### Monitor Critical Pages
+
+Prioritize monitoring:
+
+1. Homepage
+2. Login/signup pages
+3. Checkout/payment flows
+4. API endpoints
+5. Critical content pages
+
+### Choose Appropriate Intervals
+
+- **Mission-critical**: 1-minute checks
+- **Production websites**: 5-minute checks
+- **Staging/dev**: 15-minute checks
+- **Backup monitors**: 30-minute checks
+
+### Set Realistic Timeouts
+
+- Fast sites: 5-10 seconds
+- Average sites: 30 seconds (default)
+- Slow backends: 60 seconds
+
+Avoid overly aggressive timeouts that cause false alarms.
+
+### Monitor SSL Expiration
+
+For HTTPS sites:
+
+- Enable certificate monitoring
+- Set up 30-day expiration alerts
+- Use Let's Encrypt auto-renewal where possible
+
+### Use JSON Parsing for APIs
+
+Go beyond status codes:
+
+- Check response structure
+- Validate specific fields
+- Monitor API contract compliance
+
+## Alerts & Notifications
+
+### Alert Channels
+
+Configure notifications:
+
+- Email
+- Slack
+- Discord
+- Webhook (custom integrations)
+- SMS (via Twilio)
+
+### Alert Conditions
+
+- Site goes DOWN (after retry logic)
+- Site recovers (returns UP)
+- SSL certificate expires in less than 30 days
+- Response time exceeds threshold
+- Content hash changes unexpectedly
+
+<Info>
+Alert configuration is available in the monitor settings page.
+</Info>
+
+## Uptime SLA Calculation
+
+Calculate uptime percentage:
+
+```
+Uptime % = (Successful Checks / Total Checks) × 100
+```
+
+### Example
+
+- Total checks: 288 (24h × 12 checks/hour)
+- Failed checks: 3
+- Uptime: (285 / 288) × 100 = 98.96%
+
+### Industry Standards
+
+- **99.9%** ("three nines"): 43 minutes downtime/month
+- **99.95%**: 22 minutes downtime/month
+- **99.99%** ("four nines"): 4 minutes downtime/month
+
+## Exporting Uptime Data
+
+Export monitor data for analysis:
+
+1. Open monitor details
+2. Select date range
+3. Click **Export**
+4. Choose format (CSV or JSON)
+5. Download data
+
+Exports include all check results, response times, and status changes.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Analytics" icon="chart-line" href="/features/analytics">
+    Analyze uptime trends and patterns
+  </Card>
+  <Card title="AI Insights" icon="sparkles" href="/features/ai-insights">
+    Ask the AI about uptime performance
+  </Card>
+  <Card title="Alerts Setup" icon="bell" href="/guides/alerts">
+    Configure uptime notifications
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/uptime">
+    Programmatic monitor management
+  </Card>
+</CardGroup>

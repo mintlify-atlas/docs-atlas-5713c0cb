@@ -1,0 +1,347 @@
+---
+title: Pageview Tracking
+description: Automatic and manual pageview tracking for single-page and multi-page applications
+---
+
+## Overview
+
+Databuddy automatically tracks pageviews in both traditional multi-page applications and modern single-page applications (SPAs). Pageviews are captured as `screen_view` events with contextual information like path, title, referrer, and UTM parameters.
+
+## Automatic Tracking
+
+Pageview tracking is enabled by default and requires no configuration. The tracker automatically detects:
+
+- **Initial page load** - First pageview when the tracker initializes
+- **Client-side navigation** - Route changes in React, Vue, Next.js, and other SPA frameworks
+- **Browser history** - Back/forward button navigation
+- **Hash changes** - Optional, must be explicitly enabled
+
+### How It Works
+
+The tracker intercepts browser navigation APIs:
+
+```typescript
+// Automatically tracked:
+history.pushState()      // SPA navigation
+history.replaceState()   // SPA navigation
+window.popstate          // Back/forward buttons
+window.hashchange        // Hash changes (if enabled)
+```
+
+<Note>
+No manual tracking is needed for route changes in frameworks like Next.js, React Router, or Vue Router. The tracker automatically detects these changes.
+</Note>
+
+## Configuration
+
+### Track Hash Changes
+
+By default, hash changes (e.g., `/page#section1` to `/page#section2`) are **not** tracked as separate pageviews. Enable this if you use hash-based routing:
+
+```tsx
+import Databuddy from '@databuddy/sdk/react';
+
+export default function App() {
+  return (
+    <Databuddy
+      clientId="your-client-id"
+      trackHashChanges // Enable hash change tracking
+    >
+      {children}
+    </Databuddy>
+  );
+}
+```
+
+### Skip Patterns
+
+Exclude specific paths from tracking:
+
+```tsx
+import Databuddy from '@databuddy/sdk/react';
+
+export default function App() {
+  return (
+    <Databuddy
+      clientId="your-client-id"
+      skipPatterns={[
+        '/admin/*',
+        '/internal/*',
+        '/debug'
+      ]}
+    >
+      {children}
+    </Databuddy>
+  );
+}
+```
+
+Wildcard patterns:
+- `/admin/*` - Matches `/admin/users`, `/admin/settings`, etc.
+- `/admin/**` - Matches all nested paths under `/admin`
+
+### Mask Patterns
+
+Mask sensitive information in URLs:
+
+```tsx
+import Databuddy from '@databuddy/sdk/react';
+
+export default function App() {
+  return (
+    <Databuddy
+      clientId="your-client-id"
+      maskPatterns={[
+        '/users/*',      // /users/123 → /users/*
+        '/orders/**'     // /orders/abc/items → /orders/*
+      ]}
+    >
+      {children}
+    </Databuddy>
+  );
+}
+```
+
+**Masking behavior:**
+- `*` - Masks one path segment: `/users/123` becomes `/users/*`
+- `**` - Masks all remaining segments: `/users/123/profile` becomes `/users/*`
+
+## Manual Tracking
+
+You can manually track pageviews using the `screenView()` function.
+
+### Function Signature
+
+```typescript
+function screenView(properties?: Record<string, unknown>): void
+```
+
+### Basic Usage
+
+```typescript
+if (typeof window !== 'undefined') {
+  window.databuddy?.screenView();
+}
+```
+
+### With Properties
+
+Add custom properties to pageview events:
+
+```typescript
+if (typeof window !== 'undefined') {
+  window.databuddy?.screenView({
+    section: 'dashboard',
+    viewMode: 'grid',
+    filters_active: true
+  });
+}
+```
+
+### React Router Example
+
+```tsx
+import { useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
+
+function App() {
+  const location = useLocation();
+
+  useEffect(() => {
+    // Manual tracking (not needed with automatic tracking)
+    window.databuddy?.screenView({
+      route: location.pathname
+    });
+  }, [location]);
+
+  return <div>{/* Your app */}</div>;
+}
+```
+
+<Warning>
+Manual `screenView()` calls are usually unnecessary. The tracker automatically detects route changes in most frameworks. Only use manual tracking for custom navigation scenarios.
+</Warning>
+
+## Pageview Data
+
+Each `screen_view` event includes:
+
+### Automatic Properties
+
+<ResponseField name="path" type="string">
+  Full URL including origin, path, search params, and hash.
+  Example: `https://example.com/products?category=widgets#reviews`
+</ResponseField>
+
+<ResponseField name="title" type="string">
+  Document title from `<title>` tag.
+</ResponseField>
+
+<ResponseField name="referrer" type="string">
+  Previous page URL or `"direct"` if none.
+</ResponseField>
+
+<ResponseField name="page_count" type="number">
+  Number of pages viewed in the current session.
+</ResponseField>
+
+<ResponseField name="viewport_size" type="string">
+  Browser viewport dimensions in format `"width x height"` (e.g., `"1920x1080"`).
+</ResponseField>
+
+<ResponseField name="timezone" type="string">
+  User's timezone from `Intl.DateTimeFormat()`. Example: `"America/New_York"`
+</ResponseField>
+
+<ResponseField name="language" type="string">
+  Browser language from `navigator.language`. Example: `"en-US"`
+</ResponseField>
+
+### UTM Parameters
+
+UTM parameters from the URL are automatically captured:
+
+<ResponseField name="utm_source" type="string">
+  Traffic source. Example: `"google"`, `"newsletter"`
+</ResponseField>
+
+<ResponseField name="utm_medium" type="string">
+  Marketing medium. Example: `"cpc"`, `"email"`
+</ResponseField>
+
+<ResponseField name="utm_campaign" type="string">
+  Campaign name. Example: `"spring_sale"`
+</ResponseField>
+
+<ResponseField name="utm_term" type="string">
+  Paid search keywords.
+</ResponseField>
+
+<ResponseField name="utm_content" type="string">
+  Content variation identifier for A/B testing.
+</ResponseField>
+
+### Session Context
+
+<ResponseField name="anonymousId" type="string">
+  Persistent user identifier (stored in localStorage).
+  Format: `"anon_[uuid]"`
+</ResponseField>
+
+<ResponseField name="sessionId" type="string">
+  Current session identifier (stored in sessionStorage).
+  Format: `"sess_[uuid]"`
+</ResponseField>
+
+<ResponseField name="timestamp" type="number">
+  Event timestamp in milliseconds since epoch.
+</ResponseField>
+
+## Page Exit Events
+
+Databuddy automatically tracks when users leave a page with `page_exit` events. These include engagement metrics:
+
+```typescript
+{
+  name: 'page_exit',
+  time_on_page: 45,        // seconds
+  scroll_depth: 75,        // percentage (0-100)
+  interaction_count: 3,    // clicks, scrolls, etc.
+  page_count: 5           // total pages in session
+}
+```
+
+Page exit events are sent:
+- On navigation to another page
+- On window `beforeunload` event (closing tab, external navigation)
+- On window `pagehide` event (mobile browsers)
+
+## Advanced Scenarios
+
+### Custom Event Filter
+
+Filter pageviews based on custom logic:
+
+```tsx
+import Databuddy from '@databuddy/sdk/react';
+
+export default function App() {
+  return (
+    <Databuddy
+      clientId="your-client-id"
+      filter={(event) => {
+        // Skip preview mode pageviews
+        if (event.path?.includes('preview=true')) {
+          return false;
+        }
+        // Skip admin pages
+        if (event.path?.includes('/admin')) {
+          return false;
+        }
+        return true;
+      }}
+    >
+      {children}
+    </Databuddy>
+  );
+}
+```
+
+### Sampling
+
+Track only a percentage of pageviews:
+
+```tsx
+import Databuddy from '@databuddy/sdk/react';
+
+export default function App() {
+  return (
+    <Databuddy
+      clientId="your-client-id"
+      samplingRate={0.5} // Track 50% of pageviews
+    >
+      {children}
+    </Databuddy>
+  );
+}
+```
+
+### Back/Forward Cache (bfcache)
+
+The tracker automatically handles browser back/forward cache restoration:
+
+```typescript
+// Automatically tracked when page is restored from bfcache
+window.databuddy?.screenView({
+  navigation_type: 'back_forward_cache'
+});
+```
+
+This ensures accurate pageview counts when users navigate using browser buttons.
+
+## Troubleshooting
+
+### Pageviews Not Tracked
+
+1. **Check initialization:** Ensure the tracker is loaded before navigation occurs
+2. **Verify client ID:** Confirm your `clientId` is set correctly
+3. **Check skip patterns:** Make sure the path isn't excluded by `skipPatterns`
+4. **Enable debug mode:** Add `debug` prop to see tracking logs
+
+```tsx
+<Databuddy clientId="your-client-id" debug />
+```
+
+### Duplicate Pageviews
+
+If you see duplicate pageviews:
+
+1. **Remove manual tracking:** Don't call `screenView()` if automatic tracking is enabled
+2. **Check framework integration:** Ensure you're not tracking the same navigation twice
+3. **Verify hash change setting:** Disable `trackHashChanges` if not needed
+
+## Related Documentation
+
+- [Sessions](/tracking/sessions) - Session lifecycle and expiration
+- [User Identification](/tracking/user-identification) - Anonymous and session IDs
+- [Custom Events](/tracking/events) - Track user interactions

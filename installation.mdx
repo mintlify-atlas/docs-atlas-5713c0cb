@@ -1,0 +1,795 @@
+---
+title: Installation
+description: Complete installation guide for all frameworks and platforms
+---
+
+# Installation
+
+Databuddy supports multiple installation methods to fit your tech stack. Choose the method that works best for your project.
+
+## Installation Methods
+
+<Tabs>
+  <Tab title="React / Next.js">
+    Install the SDK for React-based frameworks:
+    
+    <CodeGroup>
+    ```bash npm
+    npm install @databuddy/sdk
+    ```
+    
+    ```bash pnpm
+    pnpm add @databuddy/sdk
+    ```
+    
+    ```bash yarn
+    yarn add @databuddy/sdk
+    ```
+    
+    ```bash bun
+    bun add @databuddy/sdk
+    ```
+    </CodeGroup>
+  </Tab>
+  
+  <Tab title="Vue 3">
+    Install the SDK for Vue 3 projects:
+    
+    <CodeGroup>
+    ```bash npm
+    npm install @databuddy/sdk
+    ```
+    
+    ```bash pnpm
+    pnpm add @databuddy/sdk
+    ```
+    
+    ```bash yarn
+    yarn add @databuddy/sdk
+    ```
+    </CodeGroup>
+  </Tab>
+  
+  <Tab title="Script Tag">
+    For vanilla JavaScript or any framework, use the script tag method. No installation required!
+    
+    ```html
+    <script
+      src="https://cdn.databuddy.cc/databuddy.js"
+      data-client-id="your-client-id"
+      data-track-web-vitals="true"
+      data-track-errors="true"
+      async
+    ></script>
+    ```
+  </Tab>
+  
+  <Tab title="Node.js">
+    For server-side tracking:
+    
+    <CodeGroup>
+    ```bash npm
+    npm install @databuddy/sdk
+    ```
+    
+    ```bash pnpm
+    pnpm add @databuddy/sdk
+    ```
+    
+    ```bash yarn
+    yarn add @databuddy/sdk
+    ```
+    </CodeGroup>
+  </Tab>
+</Tabs>
+
+## Framework Setup
+
+### Next.js App Router
+
+Add the `<Databuddy />` component to your root layout:
+
+```tsx app/layout.tsx
+import { Databuddy } from '@databuddy/sdk/react';
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <head>
+        <Databuddy
+          clientId={process.env.NEXT_PUBLIC_DATABUDDY_CLIENT_ID!}
+          trackWebVitals
+          trackErrors
+          trackScrollDepth
+          enableBatching
+          batchSize={20}
+        />
+      </head>
+      <body>{children}</body>
+    </html>
+  );
+}
+```
+
+<Note>
+  Add your Client ID to `.env.local`:
+  
+  ```bash .env.local
+  NEXT_PUBLIC_DATABUDDY_CLIENT_ID=your-client-id-here
+  ```
+</Note>
+
+### Next.js Pages Router
+
+Add to your `pages/_app.tsx`:
+
+```tsx pages/_app.tsx
+import { Databuddy } from '@databuddy/sdk/react';
+import type { AppProps } from 'next/app';
+
+export default function App({ Component, pageProps }: AppProps) {
+  return (
+    <>
+      <Databuddy
+        clientId={process.env.NEXT_PUBLIC_DATABUDDY_CLIENT_ID!}
+        trackWebVitals
+        trackErrors
+        disabled={process.env.NODE_ENV === 'development'}
+      />
+      <Component {...pageProps} />
+    </>
+  );
+}
+```
+
+### React (Vite, Create React App)
+
+Add to your `App.tsx` or `main.tsx`:
+
+```tsx src/App.tsx
+import { Databuddy } from '@databuddy/sdk/react';
+
+function App() {
+  return (
+    <>
+      <Databuddy
+        clientId={import.meta.env.VITE_DATABUDDY_CLIENT_ID}
+        trackWebVitals
+        trackErrors
+        trackScrollDepth
+      />
+      <div className="App">
+        {/* Your app components */}
+      </div>
+    </>
+  );
+}
+
+export default App;
+```
+
+<Info>
+  For Vite projects, use `VITE_` prefix:
+  
+  ```bash .env
+  VITE_DATABUDDY_CLIENT_ID=your-client-id-here
+  ```
+</Info>
+
+### Vue 3
+
+Install and use the Vue plugin:
+
+```typescript main.ts
+import { createApp } from 'vue';
+import { DatabuddyPlugin } from '@databuddy/sdk/vue';
+import App from './App.vue';
+
+const app = createApp(App);
+
+app.use(DatabuddyPlugin, {
+  clientId: import.meta.env.VITE_DATABUDDY_CLIENT_ID,
+  trackWebVitals: true,
+  trackErrors: true,
+  trackScrollDepth: true,
+});
+
+app.mount('#app');
+```
+
+Then use the composable in your components:
+
+```vue
+<script setup lang="ts">
+import { useDatabuddy } from '@databuddy/sdk/vue';
+
+const { track } = useDatabuddy();
+
+const handleClick = () => {
+  track('button_clicked', {
+    button_text: 'Get Started',
+    location: 'hero'
+  });
+};
+</script>
+
+<template>
+  <button @click="handleClick">Get Started</button>
+</template>
+```
+
+### Vanilla JavaScript (Script Tag)
+
+For vanilla JavaScript or frameworks without an SDK, use the script tag method:
+
+```html index.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>My Website</title>
+  
+  <!-- Databuddy Analytics -->
+  <script
+    src="https://cdn.databuddy.cc/databuddy.js"
+    data-client-id="your-client-id"
+    data-track-web-vitals="true"
+    data-track-errors="true"
+    data-track-scroll-depth="true"
+    data-track-outgoing-links="true"
+    async
+  ></script>
+</head>
+<body>
+  <h1>My Website</h1>
+  
+  <script>
+    // Wait for Databuddy to load
+    window.addEventListener('load', () => {
+      // Track custom events
+      window.databuddy.track('page_interaction', {
+        interaction_type: 'scroll',
+        timestamp: Date.now()
+      });
+    });
+  </script>
+</body>
+</html>
+```
+
+<Warning>
+  When using the script tag, make sure to check if `window.databuddy` exists before calling methods:
+  
+  ```javascript
+  if (window.databuddy) {
+    window.databuddy.track('event_name');
+  }
+  ```
+</Warning>
+
+### Node.js (Server-Side)
+
+For server-side tracking in Node.js, Next.js API routes, or serverless functions:
+
+```typescript
+import { createTracker } from '@databuddy/sdk/node';
+
+const tracker = createTracker({
+  clientId: process.env.DATABUDDY_CLIENT_ID!,
+  clientSecret: process.env.DATABUDDY_CLIENT_SECRET!,
+  apiUrl: 'https://basket.databuddy.cc',
+});
+
+// Track server-side events
+await tracker.track('user_registered', {
+  user_id: user.id,
+  plan: 'pro',
+  referral_source: 'google',
+});
+
+// Flush events before process exit
+process.on('beforeExit', async () => {
+  await tracker.flush();
+});
+```
+
+<Info>
+  Server-side tracking requires both a `clientId` and `clientSecret`. Get your Client Secret from the [Databuddy dashboard](https://app.databuddy.cc).
+</Info>
+
+## Configuration Reference
+
+All configuration options with descriptions and defaults:
+
+### Required Options
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `clientId` | `string` | Your Databuddy project Client ID. Get this from your dashboard. |
+
+### API Configuration
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `apiUrl` | `string` | `https://basket.databuddy.cc` | Custom API endpoint for event ingestion. |
+| `scriptUrl` | `string` | `https://cdn.databuddy.cc/databuddy.js` | Custom CDN URL for the tracker script. |
+| `clientSecret` | `string` | - | Client secret for server-side tracking (optional, server-only). |
+
+### Core Tracking
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `disabled` | `boolean` | `false` | Disable all tracking. |
+| `debug` | `boolean` | `false` | Enable debug logging to console. |
+| `trackHashChanges` | `boolean` | `false` | Track URL hash changes as page views. |
+
+### Interaction Tracking
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `trackAttributes` | `boolean` | `false` | Track clicks on elements with `data-track` attributes. |
+| `trackOutgoingLinks` | `boolean` | `false` | Track clicks on external links. |
+| `trackInteractions` | `boolean` | `false` | Track user interactions (clicks, keypresses). |
+
+### Engagement Tracking
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `trackScrollDepth` | `boolean` | `false` | Track how far users scroll on pages. |
+
+### Performance Tracking
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `trackPerformance` | `boolean` | `true` | Track page load time and performance metrics. |
+| `trackWebVitals` | `boolean` | `false` | Track Web Vitals (FCP, LCP, CLS, INP, TTFB, FPS). |
+| `trackErrors` | `boolean` | `false` | Track JavaScript errors and exceptions. |
+
+### Privacy & Optimization
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `samplingRate` | `number` | `1.0` | Sampling rate for events (0.0 to 1.0). Example: 0.5 = 50% of events. |
+| `ignoreBotDetection` | `boolean` | `false` | Disable bot detection and track all traffic. |
+| `usePixel` | `boolean` | `false` | Use 1x1 pixel tracking instead of script (fallback mode). |
+
+### Batching
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enableBatching` | `boolean` | `true` | Enable event batching for efficiency. |
+| `batchSize` | `number` | `10` | Number of events to batch before sending (1-50). |
+| `batchTimeout` | `number` | `5000` | Time to wait before sending batch in ms (100-30000). |
+
+### Retries
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enableRetries` | `boolean` | `false` | Enable retries for failed requests. |
+| `maxRetries` | `number` | `3` | Maximum number of retry attempts. |
+| `initialRetryDelay` | `number` | `500` | Initial delay before retry in ms. |
+
+### Filtering
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `skipPatterns` | `string[]` | `[]` | Array of glob patterns to skip tracking (e.g., `['/admin/**']`). |
+| `maskPatterns` | `string[]` | `[]` | Array of glob patterns to mask sensitive paths (e.g., `['/users/*']`). |
+| `filter` | `function` | - | Custom filter function to conditionally skip events. |
+
+## Advanced Configuration
+
+### Conditional Tracking
+
+Skip events based on custom logic:
+
+```tsx
+<Databuddy
+  clientId="your-client-id"
+  filter={(event) => {
+    // Skip events from admin pages
+    if (event.path?.includes('/admin')) return false;
+    
+    // Skip events from bot traffic
+    if (event.userAgent?.includes('bot')) return false;
+    
+    return true;
+  }}
+/>
+```
+
+### Path Patterns
+
+Use glob patterns to skip or mask paths:
+
+```tsx
+<Databuddy
+  clientId="your-client-id"
+  skipPatterns={[
+    '/admin/**',
+    '/internal/**',
+    '/test/**'
+  ]}
+  maskPatterns={[
+    '/users/*',
+    '/orders/*'
+  ]}
+/>
+```
+
+<Info>
+  **Skip vs Mask:**
+  - `skipPatterns`: Events won't be tracked at all
+  - `maskPatterns`: Events will be tracked, but sensitive path parts will be replaced with `*`
+</Info>
+
+### Environment-Based Configuration
+
+Disable tracking in development:
+
+```tsx
+<Databuddy
+  clientId={process.env.NEXT_PUBLIC_DATABUDDY_CLIENT_ID!}
+  disabled={process.env.NODE_ENV === 'development'}
+  debug={process.env.NODE_ENV === 'development'}
+  trackWebVitals
+  trackErrors
+/>
+```
+
+### Sampling
+
+Reduce data volume by sampling events:
+
+```tsx
+<Databuddy
+  clientId="your-client-id"
+  samplingRate={0.5}  // Track 50% of sessions
+  trackWebVitals
+/>
+```
+
+<Tip>
+  Sampling is useful for high-traffic websites to reduce costs while still getting representative data.
+</Tip>
+
+### Custom API Endpoint
+
+Use a custom proxy or self-hosted backend:
+
+```tsx
+<Databuddy
+  clientId="your-client-id"
+  apiUrl="https://analytics.yourdomain.com/api"
+  scriptUrl="https://cdn.yourdomain.com/tracker.js"
+/>
+```
+
+## Script Tag Configuration
+
+When using the script tag method, convert camelCase options to kebab-case with `data-` prefix:
+
+```html
+<script
+  src="https://cdn.databuddy.cc/databuddy.js"
+  data-client-id="your-client-id"
+  data-api-url="https://basket.databuddy.cc"
+  data-track-web-vitals="true"
+  data-track-errors="true"
+  data-track-scroll-depth="true"
+  data-track-outgoing-links="true"
+  data-enable-batching="true"
+  data-batch-size="20"
+  data-sampling-rate="1.0"
+  data-disabled="false"
+  async
+></script>
+```
+
+### Script Tag with Custom Configuration
+
+For advanced configuration that can't be expressed in attributes, use `window.databuddyConfig`:
+
+```html
+<script>
+  window.databuddyConfig = {
+    clientId: 'your-client-id',
+    trackWebVitals: true,
+    trackErrors: true,
+    filter: (event) => {
+      // Custom filtering logic
+      return !event.path.includes('/admin');
+    },
+    skipPatterns: ['/admin/**', '/test/**'],
+  };
+</script>
+<script src="https://cdn.databuddy.cc/databuddy.js" async></script>
+```
+
+<Warning>
+  Define `window.databuddyConfig` **before** loading the tracker script, otherwise the configuration won't be applied.
+</Warning>
+
+## Tracking API
+
+Once Databuddy is installed, you can use these methods:
+
+### Track Custom Events
+
+```typescript
+window.databuddy.track('event_name', {
+  property1: 'value1',
+  property2: 123,
+  property3: true
+});
+```
+
+**Examples:**
+
+```typescript
+// E-commerce
+window.databuddy.track('product_viewed', {
+  product_id: 'abc-123',
+  product_name: 'Awesome T-Shirt',
+  category: 'Clothing',
+  price: 29.99
+});
+
+// SaaS
+window.databuddy.track('feature_used', {
+  feature_name: 'export_data',
+  format: 'csv',
+  row_count: 1000
+});
+
+// Content
+window.databuddy.track('article_shared', {
+  article_id: 'post-123',
+  share_method: 'twitter',
+  article_category: 'technology'
+});
+```
+
+### Set Global Properties
+
+Attach properties to all future events:
+
+```typescript
+window.databuddy.setGlobalProperties({
+  plan: 'enterprise',
+  user_role: 'admin',
+  ab_test_variant: 'checkout-v2'
+});
+```
+
+### Manual Page Views
+
+Track page views manually (automatic by default):
+
+```typescript
+window.databuddy.screenView({
+  screen_name: 'Settings',
+  previous_screen: 'Dashboard'
+});
+```
+
+### Flush Events
+
+Force send all queued events:
+
+```typescript
+window.databuddy.flush();
+```
+
+### Clear Session
+
+Reset tracking data (useful after logout):
+
+```typescript
+window.databuddy.clear();
+```
+
+### Shorthand API
+
+Use `window.db` as a shorthand:
+
+```typescript
+window.db.track('event_name', { ... });
+window.db.flush();
+window.db.clear();
+```
+
+## Declarative Tracking
+
+Track events without writing JavaScript using `data-track` attributes:
+
+```html
+<!-- Basic event -->
+<button data-track="button_clicked">
+  Click Me
+</button>
+
+<!-- With properties -->
+<button
+  data-track="cta_clicked"
+  data-button-text="Get Started"
+  data-location="hero"
+  data-variant="primary"
+>
+  Get Started
+</button>
+
+<!-- On links -->
+<a
+  href="/pricing"
+  data-track="nav_link_clicked"
+  data-destination="pricing"
+  data-source="header"
+>
+  Pricing
+</a>
+```
+
+<Info>
+  **Enable attribute tracking:**
+  
+  ```tsx
+  <Databuddy trackAttributes={true} ... />
+  ```
+  
+  Properties are auto-converted from kebab-case to camelCase:
+  - `data-button-text` → `buttonText`
+  - `data-location` → `location`
+</Info>
+
+## Privacy Controls
+
+### User Opt-Out
+
+Databuddy provides built-in opt-out mechanisms:
+
+```html
+<!-- Opt-out button -->
+<button onclick="window.databuddyOptOut()">
+  Opt Out of Analytics
+</button>
+
+<!-- Opt-in button -->
+<button onclick="window.databuddyOptIn()">
+  Opt In to Analytics
+</button>
+```
+
+Or programmatically:
+
+```typescript
+// Opt out
+if (typeof window !== 'undefined') {
+  localStorage.setItem('databuddy_opt_out', 'true');
+  window.databuddy.options.disabled = true;
+}
+
+// Opt in
+if (typeof window !== 'undefined') {
+  localStorage.removeItem('databuddy_opt_out');
+  window.databuddy.options.disabled = false;
+}
+```
+
+### Content Security Policy (CSP)
+
+If you use CSP headers, whitelist these domains:
+
+```
+Content-Security-Policy:
+  script-src 'self' https://cdn.databuddy.cc;
+  connect-src 'self' https://basket.databuddy.cc;
+```
+
+Or use nonces/hashes for inline scripts.
+
+## TypeScript
+
+The SDK is fully typed with TypeScript. Add types to your project:
+
+```typescript
+import type { DatabuddyConfig, DatabuddyTracker } from '@databuddy/sdk';
+
+// Type-safe configuration
+const config: DatabuddyConfig = {
+  clientId: 'your-client-id',
+  trackWebVitals: true,
+  trackErrors: true,
+};
+
+// Access global tracker with types
+const tracker: DatabuddyTracker | undefined = window.databuddy;
+
+if (tracker) {
+  tracker.track('event_name', {
+    property: 'value'
+  });
+}
+```
+
+## Verification
+
+After installation, verify Databuddy is working:
+
+<Steps>
+  <Step title="Open Your Website">
+    Navigate to your website in a browser.
+  </Step>
+  
+  <Step title="Open DevTools Console">
+    Press `F12` or `Cmd+Option+I` to open browser DevTools.
+  </Step>
+  
+  <Step title="Check for Databuddy">
+    Type `window.databuddy` in the console. You should see the tracker object.
+  </Step>
+  
+  <Step title="Test an Event">
+    Run this in the console:
+    ```javascript
+    window.databuddy.track('test_event', { test: true });
+    ```
+  </Step>
+  
+  <Step title="Check Dashboard">
+    Go to [app.databuddy.cc](https://app.databuddy.cc) and verify the event appears.
+  </Step>
+</Steps>
+
+<Tip>
+  Enable debug mode to see all events logged to the console:
+  
+  ```tsx
+  <Databuddy debug={true} ... />
+  ```
+</Tip>
+
+## Troubleshooting
+
+### Script Not Loading
+
+- Check that `clientId` is correct
+- Verify CDN is accessible: https://cdn.databuddy.cc/databuddy.js
+- Check for CSP restrictions blocking the script
+- Disable ad blockers temporarily
+
+### Events Not Tracking
+
+- Make sure `disabled={false}` (default)
+- Check browser console for errors
+- Verify `window.databuddy` is defined
+- Enable `debug={true}` to see event logs
+
+### TypeScript Errors
+
+- Make sure you're importing from the correct path:
+  - React: `@databuddy/sdk/react`
+  - Vue: `@databuddy/sdk/vue`
+  - Node: `@databuddy/sdk/node`
+- Use optional chaining: `window.databuddy?.track(...)`
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart Guide" icon="rocket" href="/quickstart">
+    Follow a step-by-step guide to see your first data.
+  </Card>
+  <Card title="Custom Events" icon="bolt">
+    Learn how to track custom events and user actions.
+  </Card>
+  <Card title="Dashboard" icon="chart-line" href="https://app.databuddy.cc">
+    View your analytics data in real-time.
+  </Card>
+  <Card title="API Reference" icon="book">
+    Explore the complete SDK API documentation.
+  </Card>
+</CardGroup>

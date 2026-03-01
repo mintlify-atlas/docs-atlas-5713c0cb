@@ -1,0 +1,515 @@
+---
+title: AI Insights
+description: Get automated insights and ask questions about your analytics data using natural language
+---
+
+Databuddy's AI-powered analytics assistant helps you understand your data through natural language conversation. Ask questions, get insights, and create reports without writing queries.
+
+## What is the AI Assistant?
+
+Databunny is an AI agent that analyzes your website analytics using:
+
+- **Natural language processing**: Ask questions in plain English
+- **Automated query generation**: Converts questions to SQL and analytics queries
+- **Multi-step reasoning**: Breaks down complex questions into sub-tasks
+- **Tool execution**: Accesses analytics data, goals, funnels, links, and more
+- **Interactive visualizations**: Generates charts, tables, and maps
+- **Proactive insights**: Identifies trends, anomalies, and opportunities
+
+## How It Works
+
+The AI assistant uses a sophisticated agent architecture:
+
+### Agent Pipeline
+
+1. **Triage**: Classifies your question type
+2. **Tool selection**: Chooses appropriate analytics tools
+3. **Query execution**: Fetches data from ClickHouse
+4. **Analysis**: Interprets results and generates insights
+5. **Reflection**: Validates answer quality
+6. **Response**: Returns formatted answer with visualizations
+
+### Supported Models
+
+- **Primary**: Claude 3.5 Sonnet (analytics agent)
+- **Reflection**: GPT-4o-mini (quality validation)
+- **Triage**: GPT-4o-mini (request classification)
+
+<Info>
+Databuddy uses different models optimized for each task: powerful models for analysis, efficient models for routing.
+</Info>
+
+## Asking Questions
+
+### Via Chat Interface
+
+1. Click the **AI** button in the dashboard
+2. Type your question
+3. Press Enter or click Send
+4. View the AI's response with data and charts
+
+### Via Keyboard Shortcut
+
+- Press `A` anywhere in the dashboard
+- Type your question
+- Get instant insights
+
+## Question Types
+
+### Traffic Analysis
+
+**Example questions:**
+
+- "How many visitors did I have last week?"
+- "What's my traffic trend for the last 30 days?"
+- "Show me pageviews by day for the last month"
+- "Compare this week's traffic to last week"
+
+### Page Performance
+
+**Example questions:**
+
+- "What are my top 10 pages?"
+- "Which pages have the longest time on page?"
+- "Show me entry pages ranked by visitors"
+- "What pages have the highest bounce rate?"
+
+<Note>
+Bounce rate is only available at the site level. The AI will clarify this if you ask about per-page bounce rates.
+</Note>
+
+### Traffic Sources
+
+**Example questions:**
+
+- "Where is my traffic coming from?"
+- "Show me top referrers this month"
+- "What's the breakdown of direct vs referral traffic?"
+- "Which social platforms send the most visitors?"
+
+### Geographic Analysis
+
+**Example questions:**
+
+- "What countries are my visitors from?"
+- "Show me a map of visitor locations"
+- "Which regions have the most traffic?"
+- "How many visitors from the US vs UK?"
+
+### Device & Browser
+
+**Example questions:**
+
+- "What percentage of visitors use mobile?"
+- "Show me device type distribution"
+- "Which browsers are most popular?"
+- "What's the desktop vs mobile split?"
+
+### Goals & Conversions
+
+**Example questions:**
+
+- "Show me all my goals"
+- "What's the conversion rate for newsletter signups?"
+- "Create a goal for purchase completions"
+- "How are my goals performing this month?"
+- "Which goal has the highest conversion rate?"
+
+### Funnels
+
+**Example questions:**
+
+- "Show me my funnels"
+- "What's the conversion rate for the signup funnel?"
+- "Which step in the checkout funnel has the biggest drop-off?"
+- "Create a funnel for the onboarding flow"
+- "How does the signup funnel perform by referrer?"
+
+### Custom Events
+
+**Example questions:**
+
+- "What custom events are being tracked?"
+- "Show me the 'button_click' event frequency"
+- "What properties does the 'purchase' event have?"
+- "Show me recent 'signup' events"
+
+### Performance Metrics
+
+**Example questions:**
+
+- "What's my average page load time?"
+- "Show me TTFB for the homepage"
+- "Which pages are the slowest?"
+- "How are my Core Web Vitals?"
+
+### Short Links
+
+**Example questions:**
+
+- "Show me all my short links"
+- "Create a link for the summer sale"
+- "How many clicks did the 'bf24' link get?"
+- "What's the best performing link?"
+
+### Comparative Analysis
+
+**Example questions:**
+
+- "Compare this week to last week"
+- "Show me month-over-month growth"
+- "How does mobile traffic compare to desktop?"
+- "Which performs better: organic or paid traffic?"
+
+## AI Tools
+
+The AI assistant has access to powerful analytics tools:
+
+### Query Builder
+
+Pre-built analytics queries:
+
+- `traffic`: Pageviews, visitors, sessions over time
+- `summary_metrics`: High-level KPIs
+- `top_pages`: Most viewed pages
+- `top_referrers`: Traffic sources
+- `devices`: Device type breakdown
+- `browsers`: Browser distribution
+- `countries`: Geographic distribution
+- `performance`: Load times, TTFB, Web Vitals
+- `custom_events`: Event tracking data
+
+### SQL Execution
+
+Custom SQL queries for complex analysis:
+
+```sql
+SELECT 
+  date,
+  COUNT(*) as pageviews,
+  COUNT(DISTINCT visitor_id) as visitors
+FROM pageviews
+WHERE client_id = {websiteId:String}
+  AND date >= {startDate:Date}
+GROUP BY date
+ORDER BY date
+```
+
+The AI generates SQL automatically based on your question.
+
+### Goals Tools
+
+- `list_goals`: List all goals
+- `get_goal_by_id`: Get goal details
+- `get_goal_analytics`: Conversion metrics
+- `create_goal`: Create new goal
+- `update_goal`: Modify existing goal
+- `delete_goal`: Remove goal
+
+### Funnels Tools
+
+- `list_funnels`: List all funnels
+- `get_funnel_by_id`: Get funnel details
+- `get_funnel_analytics`: Conversion rates and drop-offs
+- `get_funnel_analytics_by_referrer`: Referrer breakdown
+- `create_funnel`: Create new funnel
+
+### Links Tools
+
+- `list_links`: List all short links
+- `get_link`: Get link details
+- `search_links`: Search by name/slug/URL
+- `create_link`: Create new link
+- `update_link`: Modify link
+- `delete_link`: Remove link
+
+### Annotations Tools
+
+- `list_annotations`: Chart annotations
+- `create_annotation`: Mark events on charts
+- `update_annotation`: Edit annotations
+- `delete_annotation`: Remove annotations
+
+## Visualizations
+
+The AI generates interactive visualizations:
+
+### Chart Types
+
+**Line charts**: Traffic trends over time
+
+```json
+{"type":"line-chart","title":"Traffic Over Time","data":{"x":["2024-01-01","2024-01-02"],"pageviews":[100,150],"visitors":[80,120]}}
+```
+
+**Bar charts**: Comparing pages or sources
+
+```json
+{"type":"bar-chart","title":"Top Pages","data":{"x":["/home","/about","/pricing"],"views":[1000,800,600]}}
+```
+
+**Pie/donut charts**: Device or browser distribution
+
+```json
+{"type":"pie-chart","title":"Device Distribution","data":{"labels":["Desktop","Mobile","Tablet"],"values":[650,280,70]}}
+```
+
+**Data tables**: Detailed metrics with custom columns
+
+```json
+{"type":"data-table","title":"Performance Metrics","columns":[{"key":"page","header":"Page"},{"key":"visitors","header":"Visitors","align":"right"}],"rows":[{"page":"/home","visitors":1500}]}
+```
+
+**Maps**: Geographic visitor distribution
+
+```json
+{"type":"mini-map","title":"Visitor Locations","countries":[{"name":"United States","country_code":"US","visitors":1200,"percentage":40}]}
+```
+
+**Referrers list**: Traffic sources with favicons
+
+```json
+{"type":"referrers-list","title":"Traffic Sources","referrers":[{"name":"Google","domain":"google.com","visitors":500,"percentage":45.5}]}
+```
+
+<Tip>
+Charts are interactive: hover for details, click to filter, export to PNG.
+</Tip>
+
+## Data Integrity
+
+The AI follows strict data integrity rules:
+
+### Never Hallucinates
+
+- NEVER invents metrics or numbers
+- NEVER provides fake data
+- ALWAYS calls tools before answering
+- ONLY uses real data from tool results
+
+### Transparency
+
+- Shows raw data from queries
+- Explains data limitations
+- Notes low sample sizes
+- Flags data quality issues
+
+### Accuracy
+
+- Uses exact labels from results
+- Doesn't rename or transform data
+- Includes time context ("last 7 days")
+- Compares periods automatically
+
+## Advanced Features
+
+### Batch Queries
+
+The AI batches multiple queries for efficiency:
+
+```typescript
+get_data({
+  websiteId: 'site-123',
+  queries: [
+    { type: 'summary_metrics', preset: 'last_30d' },
+    { type: 'top_pages', preset: 'last_30d' },
+    { type: 'top_referrers', preset: 'last_30d' }
+  ]
+})
+```
+
+This returns all data in a single request.
+
+### Multi-Step Reasoning
+
+Complex questions are broken down:
+
+**Question**: "Which pages from Google have the best conversion rates?"
+
+**Steps**:
+1. Get top pages from Google (filter: referrer = google.com)
+2. List all goals
+3. Calculate conversion rate for each page
+4. Rank by conversion rate
+5. Present top 10 with chart
+
+### Proactive Insights
+
+The AI identifies patterns:
+
+- "Traffic dropped 25% because organic search declined"
+- "Mobile conversion is 40% lower than desktop - consider mobile UX improvements"
+- "Page load time increased 2x last week - investigate performance"
+
+### Contextual Recommendations
+
+Based on your data:
+
+- "Only 3 days of data available - results may not be representative"
+- "Low sample size (less than 100 events) - avoid strong conclusions"
+- "Unusual spike detected on Jan 15 - consider adding annotation"
+
+## Confirmation Flows
+
+Destructive actions require explicit confirmation:
+
+### Creating Goals
+
+1. AI calls `create_goal` with `confirmed: false`
+2. Shows preview of goal configuration
+3. Asks: "Do you want to create this goal?"
+4. User confirms: "Yes, create it"
+5. AI calls `create_goal` with `confirmed: true`
+6. Goal created
+
+### Creating Funnels
+
+Same two-step process:
+
+1. Preview with `confirmed: false`
+2. Show funnel steps
+3. Request confirmation
+4. Create with `confirmed: true`
+
+### Deleting Resources
+
+1. AI calls `delete_*` with `confirmed: false`
+2. Shows what will be deleted
+3. Warns about data loss
+4. User confirms
+5. AI deletes with `confirmed: true`
+
+<Warning>
+The AI will never delete resources without explicit user confirmation.
+</Warning>
+
+## Date Handling
+
+The AI understands natural date expressions:
+
+- "last week" → Mon-Sun of previous week
+- "last 7 days" → Exactly 7 days ago to now
+- "this month" → First day to today
+- "yesterday" → Previous day
+- "last 30 days" → 30 days ago to now
+
+Dates are converted to your website's timezone.
+
+## Privacy & Security
+
+AI insights are private and secure:
+
+- **User-scoped**: Only sees your website's data
+- **No training**: Your data is not used to train models
+- **No sharing**: Conversations are private
+- **Encrypted**: All data in transit is encrypted
+- **GDPR compliant**: No personal data exposed
+
+## Limitations
+
+### Bounce Rate
+
+- Only available at site level
+- Cannot calculate per-page bounce rate
+- AI clarifies this limitation when asked
+
+### Historic Data
+
+- Limited to data retention period (typically 90 days - 2 years)
+- Cannot analyze data before tracking was installed
+
+### Real-Time
+
+- Data has less than 1 minute latency from ingestion
+- Not truly real-time, but near real-time
+
+### Custom SQL
+
+- Must use SELECT/WITH statements only
+- No INSERT/UPDATE/DELETE
+- Must use parameter placeholders for safety
+
+## Best Practices
+
+### Be Specific
+
+Good: "Show me pageviews by day for the last 30 days"
+Bad: "Show traffic"
+
+### Provide Context
+
+Good: "Compare mobile vs desktop conversion for the signup goal"
+Bad: "Compare stuff"
+
+### Ask Follow-Ups
+
+The AI maintains conversation context:
+
+1. "Show me top pages"
+2. "Now filter to just mobile traffic"
+3. "What's the average time on page?"
+
+### Request Visualizations
+
+"Show me a chart of traffic over time"
+"Can you make a pie chart of device distribution?"
+
+### Verify Important Decisions
+
+Before making changes:
+
+- Review preview configurations
+- Check dates and filters
+- Confirm metrics are correct
+
+## Troubleshooting
+
+### AI Says "No Data"
+
+- Check your date range
+- Verify tracking is installed
+- Ensure events are being sent
+- Try a broader time period
+
+### AI Doesn't Understand
+
+Rephrase your question:
+
+- Use simpler language
+- Break into smaller questions
+- Provide more context
+
+### Charts Not Showing
+
+Check browser console for errors:
+
+- Disable ad blockers
+- Clear cache
+- Try different browser
+
+### Slow Responses
+
+Complex queries take longer:
+
+- Large date ranges
+- Multiple aggregations
+- Custom SQL queries
+
+Be patient or narrow your query.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Analytics" icon="chart-line" href="/features/analytics">
+    Explore analytics data manually
+  </Card>
+  <Card title="Goals" icon="bullseye" href="/features/goals">
+    Set up conversion tracking
+  </Card>
+  <Card title="Funnels" icon="filter" href="/features/funnels">
+    Analyze user journeys
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/analytics">
+    Programmatic data access
+  </Card>
+</CardGroup>

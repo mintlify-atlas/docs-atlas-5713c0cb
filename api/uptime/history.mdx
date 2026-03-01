@@ -1,0 +1,153 @@
+---
+title: 'Uptime History'
+description: 'Query historical uptime data and incidents'
+---
+
+## Get Uptime History
+
+Returns historical uptime data for a monitor within a date range.
+
+```bash
+curl -X POST https://api.databuddy.cc/uptime/history \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "monitorId": "sched_abc123",
+    "dateFrom": "2024-02-01",
+    "dateTo": "2024-03-01",
+    "granularity": "1h"
+  }'
+```
+
+## Request Body
+
+<ParamField body="monitorId" type="string" required>
+  Monitor schedule ID
+</ParamField>
+
+<ParamField body="dateFrom" type="string" required>
+  Start date (ISO 8601 or YYYY-MM-DD)
+</ParamField>
+
+<ParamField body="dateTo" type="string" required>
+  End date (ISO 8601 or YYYY-MM-DD)
+</ParamField>
+
+<ParamField body="granularity" type="string">
+  Data granularity: `5m`, `15m`, `1h`, `6h`, `1d`. Default: `1h`
+</ParamField>
+
+## Response
+
+<ResponseField name="dataPoints" type="array">
+  Time series data points
+</ResponseField>
+
+<ResponseField name="summary" type="object">
+  Summary statistics for the period
+</ResponseField>
+
+## Example Response
+
+```json
+{
+  "dataPoints": [
+    {
+      "timestamp": "2024-02-01T00:00:00Z",
+      "status": "up",
+      "uptimePercent": 100.0,
+      "avgTtfbMs": 234,
+      "avgTotalMs": 301,
+      "checks": 12,
+      "failures": 0
+    },
+    {
+      "timestamp": "2024-02-01T01:00:00Z",
+      "status": "up",
+      "uptimePercent": 100.0,
+      "avgTtfbMs": 241,
+      "avgTotalMs": 315,
+      "checks": 12,
+      "failures": 0
+    }
+  ],
+  "summary": {
+    "totalChecks": 8640,
+    "totalFailures": 3,
+    "uptimePercent": 99.97,
+    "avgTtfbMs": 245,
+    "avgTotalMs": 312,
+    "maxTtfbMs": 1234,
+    "minTtfbMs": 189,
+    "incidents": 1
+  }
+}
+```
+
+## Get Incidents
+
+Returns a list of downtime incidents:
+
+```bash
+curl -X POST https://api.databuddy.cc/uptime/incidents \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "monitorId": "sched_abc123",
+    "dateFrom": "2024-02-01",
+    "dateTo": "2024-03-01"
+  }'
+```
+
+### Response
+
+```json
+{
+  "incidents": [
+    {
+      "id": "inc_xyz789",
+      "startedAt": "2024-02-15T14:23:00Z",
+      "resolvedAt": "2024-02-15T14:28:00Z",
+      "durationMs": 300000,
+      "status": "resolved",
+      "firstError": "Connection timeout",
+      "checksAffected": 5,
+      "regions": ["us-west", "us-east"]
+    }
+  ]
+}
+```
+
+## Incident Details
+
+<ResponseField name="id" type="string">
+  Unique incident identifier
+</ResponseField>
+
+<ResponseField name="startedAt" type="string">
+  When the incident began
+</ResponseField>
+
+<ResponseField name="resolvedAt" type="string | null">
+  When the incident was resolved (null if ongoing)
+</ResponseField>
+
+<ResponseField name="durationMs" type="number">
+  Incident duration in milliseconds
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  `ongoing` or `resolved`
+</ResponseField>
+
+<ResponseField name="firstError" type="string">
+  First error message recorded
+</ResponseField>
+
+<ResponseField name="checksAffected" type="number">
+  Number of failed checks during incident
+</ResponseField>
+
+<ResponseField name="regions" type="array">
+  Probe regions that detected the incident
+</ResponseField>

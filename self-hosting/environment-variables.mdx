@@ -1,0 +1,514 @@
+---
+title: Environment Variables
+description: Complete reference of all environment variables for self-hosting Databuddy
+---
+
+## Database Configuration
+
+Core database connections required for Databuddy to function.
+
+### PostgreSQL
+
+<ParamField path="DATABASE_URL" type="string" required>
+  PostgreSQL connection string for user data, configuration, and authentication.
+  
+  **Format:** `postgres://username:password@host:port/database`
+  
+  **Example:**
+  ```bash
+  DATABASE_URL="postgres://databuddy:password@localhost:5432/databuddy"
+  ```
+</ParamField>
+
+### ClickHouse
+
+<ParamField path="CLICKHOUSE_URL" type="string" required>
+  ClickHouse connection string for analytics events and metrics.
+  
+  **Format:** `http://username:password@host:port/database`
+  
+  **Example:**
+  ```bash
+  CLICKHOUSE_URL="http://default:@localhost:8123/databuddy_analytics"
+  ```
+  
+  Leave password empty if ClickHouse has no authentication configured.
+</ParamField>
+
+### Redis
+
+<ParamField path="REDIS_URL" type="string" required>
+  Redis connection string for caching and session management.
+  
+  **Format:** `redis://[:password@]host:port[/database]`
+  
+  **Examples:**
+  ```bash
+  # Without password
+  REDIS_URL="redis://localhost:6379"
+  
+  # With password
+  REDIS_URL="redis://:mypassword@localhost:6379"
+  
+  # With database number
+  REDIS_URL="redis://localhost:6379/0"
+  ```
+</ParamField>
+
+## Application Configuration
+
+### Environment Mode
+
+<ParamField path="NODE_ENV" type="string" default="development">
+  Runtime environment mode.
+  
+  **Options:**
+  - `development` - Local development (enables debug logging, disables some integrations)
+  - `production` - Production deployment (JSON logs, all features enabled)
+  - `test` - Test environment
+  
+  **Example:**
+  ```bash
+  NODE_ENV=production
+  ```
+</ParamField>
+
+### Application URLs
+
+<ParamField path="BETTER_AUTH_URL" type="string" required>
+  Base URL where your Databuddy dashboard is hosted.
+  
+  **Used for:**
+  - OAuth callback URLs
+  - Email verification links
+  - Password reset links
+  
+  **Examples:**
+  ```bash
+  # Development
+  BETTER_AUTH_URL="http://localhost:3000"
+  
+  # Production
+  BETTER_AUTH_URL="https://analytics.yourcompany.com"
+  ```
+</ParamField>
+
+<ParamField path="NEXT_PUBLIC_API_URL" type="string" required>
+  API server URL accessible from the browser.
+  
+  **Note:** The `NEXT_PUBLIC_` prefix makes this available to client-side code.
+  
+  **Examples:**
+  ```bash
+  # Development
+  NEXT_PUBLIC_API_URL="http://localhost:3001"
+  
+  # Production
+  NEXT_PUBLIC_API_URL="https://api.yourcompany.com"
+  ```
+</ParamField>
+
+## Authentication
+
+### Better Auth Secret
+
+<ParamField path="BETTER_AUTH_SECRET" type="string" required>
+  Secret key for signing JWTs and encrypting session data.
+  
+  **Generate a secure secret:**
+  ```bash
+  openssl rand -base64 32
+  ```
+  
+  **Example:**
+  ```bash
+  BETTER_AUTH_SECRET="wSl7AHwHRxm6HVi0rSLcvFnn0SiZG+thg9IAF/vBkHs="
+  ```
+  
+  <Warning>
+    Keep this secret secure! If compromised, all sessions will be invalidated and you must generate a new one.
+  </Warning>
+</ParamField>
+
+### OAuth Providers
+
+<ParamField path="GITHUB_CLIENT_ID" type="string">
+  GitHub OAuth application client ID.
+  
+  **Setup:**
+  1. Go to https://github.com/settings/developers
+  2. Create a new OAuth app
+  3. Set callback URL to `{BETTER_AUTH_URL}/api/auth/callback/github`
+  
+  **Example:**
+  ```bash
+  GITHUB_CLIENT_ID="Iv1.a629723000000000"
+  GITHUB_CLIENT_SECRET="a0b1c2d3e4f5g6h7i8j9k0l1m2n3o4p5q6r7s8t9"
+  ```
+</ParamField>
+
+<ParamField path="GITHUB_CLIENT_SECRET" type="string">
+  GitHub OAuth application client secret.
+  
+  <Warning>
+    Never commit this to version control. Use environment-specific configuration.
+  </Warning>
+</ParamField>
+
+<ParamField path="GOOGLE_CLIENT_ID" type="string">
+  Google OAuth 2.0 client ID.
+  
+  **Setup:**
+  1. Go to https://console.cloud.google.com/apis/credentials
+  2. Create OAuth 2.0 credentials
+  3. Add authorized redirect URI: `{BETTER_AUTH_URL}/api/auth/callback/google`
+  
+  **Example:**
+  ```bash
+  GOOGLE_CLIENT_ID="123456789-abc123def456.apps.googleusercontent.com"
+  GOOGLE_CLIENT_SECRET="GOCSPX-abc123def456ghi789"
+  ```
+</ParamField>
+
+<ParamField path="GOOGLE_CLIENT_SECRET" type="string">
+  Google OAuth 2.0 client secret.
+</ParamField>
+
+## Email Configuration
+
+<ParamField path="RESEND_API_KEY" type="string">
+  Resend API key for sending transactional emails.
+  
+  **Used for:**
+  - Email verification
+  - Password reset
+  - Team invitations
+  - Usage alerts
+  
+  **Get an API key:** https://resend.com/api-keys
+  
+  **Example:**
+  ```bash
+  RESEND_API_KEY="re_123456789_AbCdEfGhIjKlMnOpQrStUvWxYz"
+  ```
+  
+  <Info>
+    Email functionality is optional but highly recommended for production deployments.
+  </Info>
+</ParamField>
+
+## Storage Configuration
+
+<ParamField path="R2_ACCESS_KEY_ID" type="string">
+  Cloudflare R2 access key ID for storing organization images.
+  
+  **Example:**
+  ```bash
+  R2_ACCESS_KEY_ID="abc123def456ghi789jkl"
+  R2_SECRET_ACCESS_KEY="xyz789uvw456rst123opq"
+  R2_BUCKET="databuddy-uploads"
+  R2_ENDPOINT="https://1234567890abcdef.r2.cloudflarestorage.com"
+  ```
+  
+  <Note>
+    Image uploads are optional. Organizations will function without custom images if not configured.
+  </Note>
+</ParamField>
+
+<ParamField path="R2_SECRET_ACCESS_KEY" type="string">
+  Cloudflare R2 secret access key.
+</ParamField>
+
+<ParamField path="R2_BUCKET" type="string">
+  R2 bucket name for file storage.
+</ParamField>
+
+<ParamField path="R2_ENDPOINT" type="string">
+  R2 endpoint URL for your account.
+</ParamField>
+
+## AI Features (Optional)
+
+<ParamField path="AI_API_KEY" type="string">
+  OpenRouter API key for AI assistant features.
+  
+  **Used for:**
+  - Analytics insights and recommendations
+  - Natural language queries
+  - Automated report generation
+  
+  **Get an API key:** https://openrouter.ai/
+  
+  **Example:**
+  ```bash
+  AI_API_KEY="sk-or-v1-abc123def456ghi789jkl0mno1pqr2stu3vwx4yz"
+  ```
+  
+  <Info>
+    AI features are entirely optional. Core analytics work without this configuration.
+  </Info>
+</ParamField>
+
+## External Integrations (Optional)
+
+### Domain Ranking
+
+<ParamField path="OPR_API_KEY" type="string">
+  OpenPageRank API key for domain authority metrics.
+  
+  **Get an API key:** https://www.domcop.com/openpagerank/
+  
+  **Example:**
+  ```bash
+  OPR_API_KEY="abc123def456"
+  ```
+  
+  <Note>
+    Not required for basic analytics operations.
+  </Note>
+</ParamField>
+
+### Background Jobs
+
+<ParamField path="UPSTASH_QSTASH_TOKEN" type="string">
+  Upstash QStash token for scheduled background jobs.
+  
+  **Used for:**
+  - Scheduled reports
+  - Data exports
+  - Cleanup tasks
+  
+  **Example:**
+  ```bash
+  UPSTASH_QSTASH_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  ```
+</ParamField>
+
+### Content Management
+
+<ParamField path="MARBLE_WORKSPACE_KEY" type="string">
+  Marble CMS workspace key for blog functionality.
+  
+  **Example:**
+  ```bash
+  MARBLE_WORKSPACE_KEY="ws_abc123def456"
+  MARBLE_API_URL="https://api.marblecms.com"
+  ```
+  
+  <Note>
+    Only needed if using the built-in blog feature.
+  </Note>
+</ParamField>
+
+<ParamField path="MARBLE_API_URL" type="string" default="https://api.marblecms.com">
+  Marble CMS API endpoint.
+</ParamField>
+
+## Logging Configuration (Optional)
+
+<ParamField path="LOGTAIL_SOURCE_TOKEN" type="string">
+  Logtail source token for centralized logging.
+  
+  **Example:**
+  ```bash
+  LOGTAIL_SOURCE_TOKEN="abc123def456ghi789"
+  LOGTAIL_ENDPOINT="https://in.logtail.com"
+  ```
+  
+  <Info>
+    Logtail integration is automatically disabled when `NODE_ENV=development`.
+  </Info>
+</ParamField>
+
+<ParamField path="LOGTAIL_ENDPOINT" type="string" default="https://in.logtail.com">
+  Logtail ingestion endpoint.
+</ParamField>
+
+## Advanced Configuration
+
+### Security
+
+<ParamField path="AUTUMN_SECRET_KEY" type="string">
+  Autumn.js secret key for request signing.
+  
+  **Example:**
+  ```bash
+  AUTUMN_SECRET_KEY="your-secret-key-here"
+  ```
+  
+  <Note>
+    Disabled when `NODE_ENV=development`.
+  </Note>
+</ParamField>
+
+## Event Streaming (Optional)
+
+For high-scale deployments using Redpanda:
+
+<ParamField path="REDPANDA_ADVERTISED_HOST" type="string">
+  Host/IP where Redpanda is accessible.
+  
+  **Example:**
+  ```bash
+  REDPANDA_ADVERTISED_HOST="redpanda.internal.company.com"
+  REDPANDA_LOG_LEVEL="warn"
+  REDPANDA_USER="databuddy"
+  REDPANDA_PASSWORD="secure-password"
+  ```
+</ParamField>
+
+<ParamField path="REDPANDA_LOG_LEVEL" type="string" default="warn">
+  Redpanda logging verbosity.
+  
+  **Options:** `error`, `warn`, `info`, `debug`, `trace`
+</ParamField>
+
+<ParamField path="REDPANDA_USER" type="string">
+  Redpanda SASL authentication username.
+</ParamField>
+
+<ParamField path="REDPANDA_PASSWORD" type="string">
+  Redpanda SASL authentication password.
+</ParamField>
+
+<ParamField path="VECTOR_KAFKA_USER" type="string">
+  Vector (data pipeline) Kafka username for Redpanda integration.
+</ParamField>
+
+<ParamField path="VECTOR_KAFKA_PASSWORD" type="string">
+  Vector Kafka password.
+</ParamField>
+
+## Example Configuration Files
+
+### Development Environment
+
+```bash .env.development
+# Databases
+DATABASE_URL="postgres://databuddy:databuddy_dev_password@localhost:5432/databuddy"
+CLICKHOUSE_URL="http://default:@localhost:8123/databuddy_analytics"
+REDIS_URL="redis://localhost:6379"
+
+# Application
+NODE_ENV=development
+BETTER_AUTH_URL="http://localhost:3000"
+NEXT_PUBLIC_API_URL="http://localhost:3001"
+
+# Auth (generate with: openssl rand -base64 32)
+BETTER_AUTH_SECRET="wSl7AHwHRxm6HVi0rSLcvFnn0SiZG+thg9IAF/vBkHs="
+
+# Optional: OAuth
+GITHUB_CLIENT_ID=""
+GITHUB_CLIENT_SECRET=""
+GOOGLE_CLIENT_ID=""
+GOOGLE_CLIENT_SECRET=""
+
+# Optional: Email
+RESEND_API_KEY=""
+
+# Optional: AI
+AI_API_KEY=""
+```
+
+### Production Environment
+
+```bash .env.production
+# Databases
+DATABASE_URL="postgres://databuddy:SECURE_PASSWORD_HERE@db.internal:5432/databuddy"
+CLICKHOUSE_URL="http://default:CLICKHOUSE_PASSWORD@clickhouse.internal:8123/databuddy_analytics"
+REDIS_URL="redis://:REDIS_PASSWORD@redis.internal:6379"
+
+# Application
+NODE_ENV=production
+BETTER_AUTH_URL="https://analytics.yourcompany.com"
+NEXT_PUBLIC_API_URL="https://api.analytics.yourcompany.com"
+
+# Auth (MUST be different from dev!)
+BETTER_AUTH_SECRET="GENERATE_NEW_SECRET_FOR_PRODUCTION"
+
+# OAuth
+GITHUB_CLIENT_ID="Iv1.your_production_client_id"
+GITHUB_CLIENT_SECRET="your_production_client_secret"
+GOOGLE_CLIENT_ID="your-production-id.apps.googleusercontent.com"
+GOOGLE_CLIENT_SECRET="your_production_secret"
+
+# Email (required for production)
+RESEND_API_KEY="re_your_production_api_key"
+
+# Storage
+R2_ACCESS_KEY_ID="your_r2_access_key"
+R2_SECRET_ACCESS_KEY="your_r2_secret"
+R2_BUCKET="databuddy-prod-uploads"
+R2_ENDPOINT="https://your-account.r2.cloudflarestorage.com"
+
+# Logging
+LOGTAIL_SOURCE_TOKEN="your_logtail_token"
+
+# Security
+AUTUMN_SECRET_KEY="your_autumn_secret"
+```
+
+## Environment Variable Validation
+
+Databuddy validates required environment variables on startup. Missing required variables will prevent the application from starting with clear error messages.
+
+**Required variables:**
+- `DATABASE_URL`
+- `CLICKHOUSE_URL`
+- `REDIS_URL`
+- `BETTER_AUTH_URL`
+- `BETTER_AUTH_SECRET`
+- `NEXT_PUBLIC_API_URL`
+
+**Recommended for production:**
+- `RESEND_API_KEY`
+- `GITHUB_CLIENT_ID` + `GITHUB_CLIENT_SECRET` (or Google OAuth)
+- `R2_*` variables for image uploads
+
+## Security Best Practices
+
+<Steps>
+  <Step title="Never commit secrets to version control">
+    Add `.env` to `.gitignore`:
+    
+    ```bash .gitignore
+    .env
+    .env.local
+    .env.production
+    ```
+  </Step>
+
+  <Step title="Use different secrets for each environment">
+    Development, staging, and production should have completely different:
+    - Database passwords
+    - Auth secrets
+    - API keys
+  </Step>
+
+  <Step title="Rotate secrets regularly">
+    Update sensitive credentials periodically:
+    - `BETTER_AUTH_SECRET` every 90 days
+    - Database passwords every 180 days
+    - API keys when team members leave
+  </Step>
+
+  <Step title="Use secrets management in production">
+    Consider using:
+    - AWS Secrets Manager
+    - HashiCorp Vault
+    - Google Secret Manager
+    - Kubernetes Secrets
+  </Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Database Setup" icon="database" href="/self-hosting/database-setup">
+    Initialize PostgreSQL and ClickHouse
+  </Card>
+  
+  <Card title="Configuration" icon="gear" href="/self-hosting/configuration">
+    Advanced configuration and tuning
+  </Card>
+</CardGroup>

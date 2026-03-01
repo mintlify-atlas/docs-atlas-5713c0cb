@@ -1,0 +1,281 @@
+---
+title: 'Batch Events'
+api: 'POST /batch'
+description: 'Send multiple events in a single request for improved performance'
+---
+
+The batch endpoint allows you to send multiple analytics events in a single HTTP request, improving performance and reducing network overhead. It supports both track events and outgoing link events.
+
+## Authentication
+
+Batch requests require a valid `website_id` query parameter. The website must exist and be accessible.
+
+## Request
+
+### Headers
+
+<ParamField header="Content-Type" type="string" required>
+  Must be `application/json`
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="website_id" type="string" required>
+  UUID of the website to track events for
+</ParamField>
+
+### Body Parameters
+
+The request body must be an array of event objects (maximum 100 events per batch).
+
+#### Track Event Object
+
+<ParamField body="type" type="string" required>
+  Must be `"track"` for analytics events
+</ParamField>
+
+<ParamField body="payload" type="object" required>
+  Event data object containing:
+  
+  - `eventId` (string, optional): Unique identifier for deduplication
+  - `name` (string, required): Event name
+  - `anonymousId` (string, required): Anonymous user identifier
+  - `sessionId` (string, required): Session identifier
+  - `sessionStartTime` (number, required): Session start timestamp (Unix ms)
+  - `timestamp` (number, required): Event timestamp (Unix ms)
+  - `path` (string, required): Page path where event occurred
+  - `title` (string, required): Page title
+  - `referrer` (string, required): Referrer URL
+  - `screen_resolution` (string, required): Screen resolution (e.g., "1920x1080")
+  - `viewport_size` (string, required): Viewport size (e.g., "1440x900")
+  - `timezone` (string, required): User timezone
+  - `language` (string, required): Browser language
+  - `connection_type` (string, optional): Connection type ("wifi", "cellular", "ethernet", "unknown")
+  - `rtt` (number, optional): Round-trip time in milliseconds
+  - `downlink` (number, optional): Download speed in Mbps
+  - `utm_source` (string, optional): UTM source parameter
+  - `utm_medium` (string, optional): UTM medium parameter
+  - `utm_campaign` (string, optional): UTM campaign parameter
+  - `utm_term` (string, optional): UTM term parameter
+  - `utm_content` (string, optional): UTM content parameter
+  - `load_time` (number, optional): Page load time in milliseconds
+  - `dom_ready_time` (number, optional): DOM ready time in milliseconds
+  - `ttfb` (number, optional): Time to first byte in milliseconds
+  - `time_on_page` (number, optional): Time spent on page in milliseconds
+  - `scroll_depth` (number, optional): Scroll depth percentage (0-100)
+  - `interaction_count` (number, optional): Number of interactions
+  - `page_count` (number, optional): Pages viewed in session
+</ParamField>
+
+#### Outgoing Link Event Object
+
+<ParamField body="type" type="string" required>
+  Must be `"outgoing_link"` for link click tracking
+</ParamField>
+
+<ParamField body="payload" type="object" required>
+  Link event data object containing:
+  
+  - `eventId` (string, required): Unique identifier
+  - `anonymousId` (string, optional): Anonymous user identifier
+  - `sessionId` (string, optional): Session identifier
+  - `timestamp` (number, optional): Event timestamp (Unix ms)
+  - `href` (string, required): Link URL
+  - `text` (string, optional): Link text content
+  - `properties` (object, optional): Additional custom properties
+</ParamField>
+
+## Response
+
+<ResponseField name="status" type="string">
+  Status of the batch request: `success` or `error`
+</ResponseField>
+
+<ResponseField name="batch" type="boolean">
+  Always `true` for batch requests
+</ResponseField>
+
+<ResponseField name="processed" type="number">
+  Total number of events processed
+</ResponseField>
+
+<ResponseField name="batched" type="object">
+  Breakdown of events by type:
+  - `track` (number): Number of track events processed
+  - `outgoing_link` (number): Number of outgoing link events processed
+</ResponseField>
+
+<ResponseField name="results" type="array">
+  Array of result objects for each event:
+  - `status` (string): `success` or `error` for this specific event
+  - `type` (string): Event type (`track` or `outgoing_link`)
+  - `eventId` (string, optional): Event ID if provided
+  - `message` (string, optional): Error message if failed
+</ResponseField>
+
+## Examples
+
+### Mixed Batch Request
+
+```bash
+curl -X POST 'https://api.databuddy.io/batch?website_id=550e8400-e29b-41d4-a716-446655440000' \
+  -H "Content-Type: application/json" \
+  -d '[
+    {
+      "type": "track",
+      "payload": {
+        "eventId": "evt_123",
+        "name": "page_view",
+        "anonymousId": "anon_456",
+        "sessionId": "sess_789",
+        "sessionStartTime": 1709251200000,
+        "timestamp": 1709251200000,
+        "path": "/dashboard",
+        "title": "Dashboard",
+        "referrer": "https://google.com",
+        "screen_resolution": "1920x1080",
+        "viewport_size": "1440x900",
+        "timezone": "America/New_York",
+        "language": "en-US",
+        "load_time": 1200,
+        "ttfb": 250
+      }
+    },
+    {
+      "type": "outgoing_link",
+      "payload": {
+        "eventId": "evt_124",
+        "anonymousId": "anon_456",
+        "sessionId": "sess_789",
+        "timestamp": 1709251210000,
+        "href": "https://external-site.com",
+        "text": "Learn More"
+      }
+    }
+  ]'
+```
+
+```json Response
+{
+  "status": "success",
+  "batch": true,
+  "processed": 2,
+  "batched": {
+    "track": 1,
+    "outgoing_link": 1
+  },
+  "results": [
+    {
+      "status": "success",
+      "type": "track",
+      "eventId": "evt_123"
+    },
+    {
+      "status": "success",
+      "type": "outgoing_link",
+      "eventId": "evt_124"
+    }
+  ]
+}
+```
+
+### Track Events Only
+
+```bash
+curl -X POST 'https://api.databuddy.io/batch?website_id=550e8400-e29b-41d4-a716-446655440000' \
+  -H "Content-Type: application/json" \
+  -d '[
+    {
+      "type": "track",
+      "payload": {
+        "name": "button_click",
+        "anonymousId": "anon_123",
+        "sessionId": "sess_456",
+        "sessionStartTime": 1709251200000,
+        "timestamp": 1709251205000,
+        "path": "/pricing",
+        "title": "Pricing",
+        "referrer": "",
+        "screen_resolution": "1366x768",
+        "viewport_size": "1366x768",
+        "timezone": "UTC",
+        "language": "en"
+      }
+    },
+    {
+      "type": "track",
+      "payload": {
+        "name": "form_submit",
+        "anonymousId": "anon_123",
+        "sessionId": "sess_456",
+        "sessionStartTime": 1709251200000,
+        "timestamp": 1709251220000,
+        "path": "/contact",
+        "title": "Contact Us",
+        "referrer": "/pricing",
+        "screen_resolution": "1366x768",
+        "viewport_size": "1366x768",
+        "timezone": "UTC",
+        "language": "en"
+      }
+    }
+  ]'
+```
+
+## Error Responses
+
+### Batch Too Large
+
+```json
+{
+  "status": "error",
+  "message": "Batch too large"
+}
+```
+
+### Invalid Body Format
+
+```json
+{
+  "status": "error",
+  "message": "Batch endpoint expects array of events"
+}
+```
+
+### Partial Success
+
+If some events fail validation, they will be marked as errors in the results array while successful events are still processed:
+
+```json
+{
+  "status": "success",
+  "batch": true,
+  "processed": 2,
+  "batched": {
+    "track": 1,
+    "outgoing_link": 0
+  },
+  "results": [
+    {
+      "status": "success",
+      "type": "track",
+      "eventId": "evt_123"
+    },
+    {
+      "status": "error",
+      "message": "Invalid event schema",
+      "eventType": "track",
+      "eventId": "evt_124"
+    }
+  ]
+}
+```
+
+## Limits
+
+- Maximum batch size: **100 events** per request
+- Event names: 1-256 characters
+- Anonymous ID: max 256 characters
+- Session ID: max 256 characters
+- Path: max 2048 characters
+- Text: max 1024 characters

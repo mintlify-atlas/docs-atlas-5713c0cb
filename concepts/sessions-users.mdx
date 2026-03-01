@@ -1,0 +1,482 @@
+---
+title: 'Sessions & Users'
+description: 'Understanding how Databuddy identifies sessions and anonymous users'
+icon: 'users'
+---
+
+Databuddy uses a privacy-first approach to identify users and sessions without relying on cookies or personal information. Every visitor gets an anonymous ID, and sessions are automatically managed.
+
+## Anonymous IDs
+
+Every visitor to your website receives a unique **anonymous ID** that persists across page views and sessions.
+
+### Generation
+
+Anonymous IDs are generated using UUIDv4 and prefixed with `anon_`:
+
+```typescript
+// From packages/tracker/src/core/tracker.ts:167-169
+generateAnonymousId(): string {
+  return `anon_${generateUUIDv4()}`;
+}
+```
+
+Example: `anon_550e8400-e29b-41d4-a716-446655440000`
+
+### Storage
+
+Anonymous IDs are stored in **localStorage** with the key `did` (Databuddy ID):
+
+```typescript
+// From packages/tracker/src/core/tracker.ts:145-165
+getOrCreateAnonymousId(): string {
+  if (this.isServer()) {
+    return this.generateAnonymousId();
+  }
+
+  // Check URL parameter first
+  const urlParams = new URLSearchParams(window.location.search);
+  const anonId = urlParams.get("anonId");
+  if (anonId) {
+    localStorage.setItem("did", anonId);
+    return anonId;
+  }
+
+  // Check existing ID in localStorage
+  const storedId = localStorage.getItem("did");
+  if (storedId) {
+    return storedId;
+  }
+
+  // Generate new ID
+  const newId = this.generateAnonymousId();
+  localStorage.setItem("did", newId);
+  return newId;
+}
+```
+
+<Info>
+Anonymous IDs persist until the user clears their browser's localStorage or opts out of tracking.
+</Info>
+
+### Cross-Domain Tracking
+
+Pass anonymous IDs between domains using URL parameters:
+
+```javascript
+// On domain A: app.example.com
+const anonId = localStorage.getItem('did');
+window.location.href = `https://shop.example.com?anonId=${anonId}`;
+
+// On domain B: shop.example.com
+// Databuddy automatically picks up the anonId from the URL
+```
+
+This allows you to track users across multiple domains while maintaining privacy.
+
+## Session IDs
+
+Sessions represent a single visit to your website. A new session starts when:
+
+1. A user visits your site for the first time
+2. 30 minutes of inactivity have passed
+3. The user closes and reopens their browser
+
+### Generation
+
+Session IDs use the same UUID format but are prefixed with `sess_`:
+
+```typescript
+// From packages/tracker/src/core/tracker.ts:204-206
+generateSessionId(): string {
+  return `sess_${generateUUIDv4()}`;
+}
+```
+
+Example: `sess_a1b2c3d4-e5f6-7890-abcd-ef1234567890`
+
+### Storage
+
+Session IDs are stored in **sessionStorage** (not localStorage), which means:
+
+- They're cleared when the tab is closed
+- They're unique per browser tab
+- They don't persist after the browser closes
+
+```typescript
+// From packages/tracker/src/core/tracker.ts:171-202
+getOrCreateSessionId(): string {
+  if (this.isServer()) {
+    return this.generateSessionId();
+  }
+
+  // Check URL parameter
+  const urlParams = new URLSearchParams(window.location.search);
+  const sessionIdFromUrl = urlParams.get("sessionId");
+  if (sessionIdFromUrl) {
+    sessionStorage.setItem("did_session", sessionIdFromUrl);
+    sessionStorage.setItem("did_session_timestamp", Date.now().toString());
+    return sessionIdFromUrl;
+  }
+
+  // Check existing session
+  const storedId = sessionStorage.getItem("did_session");
+  const sessionTimestamp = sessionStorage.getItem("did_session_timestamp");
+
+  if (storedId && sessionTimestamp) {
+    const sessionAge = Date.now() - Number.parseInt(sessionTimestamp, 10);
+    if (sessionAge < 30 * 60 * 1000) {  // 30 minutes
+      sessionStorage.setItem("did_session_timestamp", Date.now().toString());
+      return storedId;
+    }
+    // Session expired, clear storage
+    sessionStorage.removeItem("did_session");
+    sessionStorage.removeItem("did_session_timestamp");
+    sessionStorage.removeItem("did_session_start");
+  }
+
+  // Create new session
+  const newId = this.generateSessionId();
+  sessionStorage.setItem("did_session", newId);
+  sessionStorage.setItem("did_session_timestamp", Date.now().toString());
+  return newId;
+}
+```
+
+### Session Timeout
+
+Sessions automatically expire after **30 minutes of inactivity**. The timestamp is updated on each tracked event to keep active sessions alive.
+
+<Tip>
+The 30-minute timeout is a common standard used by Google Analytics and other analytics platforms.
+</Tip>
+
+## Session Start Time
+
+Databuddy tracks when each session started:
+
+```typescript
+// From packages/tracker/src/core/tracker.ts:208-221
+getSessionStartTime(): number {
+  if (this.isServer()) {
+    return Date.now();
+  }
+
+  const storedTime = sessionStorage.getItem("did_session_start");
+  if (storedTime) {
+    return Number.parseInt(storedTime, 10);
+  }
+
+  const now = Date.now();
+  sessionStorage.setItem("did_session_start", now.toString());
+  return now;
+}
+```
+
+This allows you to:
+- Calculate session duration
+- Track time to conversion
+- Analyze engagement patterns
+
+## User vs Session Metrics
+
+Understand the difference between user and session metrics:
+
+<AccordionGroup>
+<Accordion title="Unique Users" icon="user">
+Counted by **anonymous ID**. Represents the number of distinct visitors across all time periods.
+
+```sql
+SELECT uniq(anonymous_id) as unique_users
+FROM analytics.events
+WHERE time >= now() - INTERVAL 7 DAY;
+```
+</Accordion>
+
+<Accordion title="Sessions" icon="clock">
+Counted by **session ID**. Represents the number of distinct visits.
+
+```sql
+SELECT uniq(session_id) as sessions
+FROM analytics.events
+WHERE time >= now() - INTERVAL 7 DAY;
+```
+</Accordion>
+
+<Accordion title="Page Views" icon="eye">
+Total number of pages viewed. One user can generate multiple page views per session.
+
+```sql
+SELECT count(*) as pageviews
+FROM analytics.events
+WHERE event_name = 'screen_view'
+  AND time >= now() - INTERVAL 7 DAY;
+```
+</Accordion>
+
+<Accordion title="Returning Users" icon="rotate-right">
+Users with more than one session. Calculated by comparing session counts per anonymous ID.
+
+```sql
+SELECT countIf(session_count > 1) as returning_users
+FROM (
+  SELECT anonymous_id, uniq(session_id) as session_count
+  FROM analytics.events
+  GROUP BY anonymous_id
+);
+```
+</Accordion>
+</AccordionGroup>
+
+## Activity Tracking
+
+Databuddy tracks various activity metrics within each session:
+
+### Page Count
+
+The number of pages viewed in the current session:
+
+```typescript
+pageCount = 0;
+
+// Incremented on each page view
+this.pageCount++;
+```
+
+### Interaction Count
+
+The number of user interactions (clicks, form inputs, etc.):
+
+```typescript
+interactionCount = 0;
+
+// Incremented on tracked interactions
+this.interactionCount++;
+```
+
+### Engaged Time
+
+Time spent actively engaging with the page (visible and active):
+
+```typescript
+// From packages/tracker/src/core/tracker.ts:596-624
+startEngagement(): void {
+  if (this.engagementStartTime === null) {
+    this.engagementStartTime = Date.now();
+    this.isPageVisible = true;
+  }
+}
+
+pauseEngagement(): void {
+  if (this.engagementStartTime !== null) {
+    this.engagedTime += Date.now() - this.engagementStartTime;
+    this.engagementStartTime = null;
+    this.isPageVisible = false;
+  }
+}
+
+getEngagedTime(): number {
+  let total = this.engagedTime;
+  if (this.engagementStartTime !== null) {
+    total += Date.now() - this.engagementStartTime;
+  }
+  return total;
+}
+```
+
+Engaged time is paused when:
+- The page loses focus
+- The user switches tabs
+- The page is hidden
+
+## User Identification (Optional)
+
+While Databuddy is anonymous by default, you can optionally identify users after authentication:
+
+<Warning>
+Only use user identification if you have proper consent and privacy policies in place. Never send PII without user consent.
+</Warning>
+
+```typescript
+// After user logs in
+window.db.track('user_identified', {
+  userId: 'user_12345',  // Your internal user ID
+  plan: 'pro'
+});
+```
+
+Best practices for user identification:
+
+1. **Use hashed IDs**: Hash email addresses or use internal database IDs
+2. **Store separately**: Keep PII in PostgreSQL, not ClickHouse
+3. **Get consent**: Clearly inform users about identification
+4. **Allow unlinking**: Provide a way to disassociate the anonymous ID
+
+## Session Attributes
+
+Every event in a session includes:
+
+```typescript
+{
+  anonymousId: "anon_550e8400-e29b-41d4-a716-446655440000",
+  sessionId: "sess_a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  sessionStartTime: 1709251200000,
+  timestamp: 1709251320000,
+  pageCount: 3,
+  interactionCount: 7,
+  scrollDepth: 85,
+  timeOnPage: 120000,  // 120 seconds
+}
+```
+
+## Multi-Tab Behavior
+
+Each browser tab gets its own session:
+
+<Steps>
+<Step title="User opens site in Tab A">
+New session created: `sess_abc123`
+</Step>
+
+<Step title="User opens site in Tab B">
+New session created: `sess_def456`
+</Step>
+
+<Step title="Both tabs active">
+Two separate sessions tracked simultaneously with the same anonymous ID
+</Step>
+</Steps>
+
+This provides accurate tracking of multi-tab browsing behavior.
+
+## Session Replay (Coming Soon)
+
+Databuddy will soon support privacy-friendly session replay:
+
+- Text content masked by default
+- Input fields never recorded
+- Opt-in per session
+- Full GDPR compliance
+
+## Database Schema
+
+Sessions and users are tracked in the ClickHouse events table:
+
+```sql
+-- From packages/db/src/clickhouse/schema.ts
+CREATE TABLE analytics.events (
+  id UUID,
+  client_id String,
+  anonymous_id String,      -- User identifier
+  session_id String,        -- Session identifier
+  session_start_time Nullable(DateTime64(3, 'UTC')),
+  time DateTime64(3, 'UTC'),
+  
+  page_count UInt8 DEFAULT 1,
+  interaction_count Nullable(Int16),
+  time_on_page Nullable(Float32),
+  scroll_depth Nullable(Float32),
+  
+  -- Other event data...
+) ENGINE = MergeTree()
+PARTITION BY toYYYYMM(time)
+ORDER BY (client_id, time, id);
+```
+
+## Querying Sessions
+
+Examples of common session queries:
+
+<CodeGroup>
+```sql Session Duration
+SELECT
+  session_id,
+  max(time) - min(time) as session_duration_ms,
+  session_duration_ms / 1000 as session_duration_sec
+FROM analytics.events
+WHERE client_id = 'your-client-id'
+  AND time >= now() - INTERVAL 7 DAY
+GROUP BY session_id;
+```
+
+```sql Pages Per Session
+SELECT
+  session_id,
+  countIf(event_name = 'screen_view') as page_views
+FROM analytics.events
+WHERE client_id = 'your-client-id'
+  AND time >= now() - INTERVAL 7 DAY
+GROUP BY session_id;
+```
+
+```sql Bounce Rate
+SELECT
+  countIf(page_views = 1) / count(*) * 100 as bounce_rate
+FROM (
+  SELECT
+    session_id,
+    countIf(event_name = 'screen_view') as page_views
+  FROM analytics.events
+  WHERE client_id = 'your-client-id'
+    AND time >= now() - INTERVAL 7 DAY
+  GROUP BY session_id
+);
+```
+
+```sql User Retention
+SELECT
+  count(DISTINCT anonymous_id) as total_users,
+  countIf(session_count > 1) as returning_users,
+  returning_users / total_users * 100 as retention_rate
+FROM (
+  SELECT
+    anonymous_id,
+    uniq(session_id) as session_count
+  FROM analytics.events
+  WHERE client_id = 'your-client-id'
+  GROUP BY anonymous_id
+);
+```
+</CodeGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+<Card title="Don't Reset IDs" icon="ban">
+Never manually reset anonymous or session IDs. Let Databuddy manage them automatically.
+</Card>
+
+<Card title="Use URL Parameters" icon="link">
+For cross-domain tracking, pass IDs via URL parameters:
+```
+https://example.com?anonId=anon_xxx&sessionId=sess_yyy
+```
+</Card>
+
+<Card title="Respect Privacy" icon="shield">
+Don't correlate anonymous IDs with PII without explicit user consent.
+</Card>
+
+<Card title="Monitor Session Length" icon="clock">
+Track average session duration to understand engagement:
+```sql
+SELECT avg(duration) FROM sessions
+```
+</Card>
+</CardGroup>
+
+## Learn More
+
+<CardGroup cols={2}>
+<Card title="Privacy First" icon="shield" href="/concepts/privacy-first">
+Learn about Databuddy's privacy architecture
+</Card>
+
+<Card title="Event Tracking" icon="chart-line" href="/concepts/event-tracking">
+Understand how events are captured and sent
+</Card>
+
+<Card title="Data Model" icon="database" href="/concepts/data-model">
+Explore the complete database schema
+</Card>
+</CardGroup>

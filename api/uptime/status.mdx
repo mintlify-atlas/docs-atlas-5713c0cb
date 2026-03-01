@@ -1,0 +1,116 @@
+---
+title: 'Uptime Status'
+description: 'Get current uptime status and recent check results'
+---
+
+## Get Current Status
+
+Returns the current uptime status for a monitor.
+
+```bash
+curl -X POST https://api.databuddy.cc/uptime/status \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "monitorId": "sched_abc123"
+  }'
+```
+
+## Response
+
+<ResponseField name="status" type="string">
+  Current status: `up`, `down`, or `degraded`
+</ResponseField>
+
+<ResponseField name="lastCheckAt" type="string">
+  ISO 8601 timestamp of last check
+</ResponseField>
+
+<ResponseField name="nextCheckAt" type="string">
+  ISO 8601 timestamp of next scheduled check
+</ResponseField>
+
+<ResponseField name="uptime" type="object">
+  Uptime percentages for different time periods
+</ResponseField>
+
+<ResponseField name="lastCheck" type="object">
+  Details of the most recent check
+</ResponseField>
+
+## Example Response
+
+```json
+{
+  "status": "up",
+  "lastCheckAt": "2024-03-01T17:45:00Z",
+  "nextCheckAt": "2024-03-01T17:50:00Z",
+  "uptime": {
+    "24h": 100.0,
+    "7d": 99.95,
+    "30d": 99.87,
+    "90d": 99.92
+  },
+  "lastCheck": {
+    "timestamp": "2024-03-01T17:45:00Z",
+    "status": "up",
+    "httpCode": 200,
+    "ttfbMs": 245,
+    "totalMs": 312,
+    "responseBytes": 4567,
+    "sslValid": true,
+    "sslExpiry": "2024-12-15T23:59:59Z",
+    "probeRegion": "us-west",
+    "error": null
+  }
+}
+```
+
+## Status Values
+
+<ResponseField name="up" type="string">
+  Monitor is responding successfully (HTTP 200-299)
+</ResponseField>
+
+<ResponseField name="down" type="string">
+  Monitor is not responding or returning errors
+</ResponseField>
+
+<ResponseField name="degraded" type="string">
+  Monitor is responding but with elevated response times or intermittent failures
+</ResponseField>
+
+## Recent Checks
+
+Get the last N check results:
+
+```bash
+curl -X POST https://api.databuddy.cc/uptime/checks/recent \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "monitorId": "sched_abc123",
+    "limit": 20
+  }'
+```
+
+### Response
+
+Returns an array of check objects with details:
+
+```json
+{
+  "checks": [
+    {
+      "timestamp": "2024-03-01T17:45:00Z",
+      "status": "up",
+      "httpCode": 200,
+      "ttfbMs": 245,
+      "totalMs": 312,
+      "responseBytes": 4567,
+      "sslValid": true,
+      "probeRegion": "us-west"
+    }
+  ]
+}
+```

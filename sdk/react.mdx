@@ -1,0 +1,541 @@
+---
+title: 'React SDK'
+description: 'React hooks and components for Databuddy analytics'
+icon: 'react'
+---
+
+## Installation
+
+<CodeGroup>
+```bash npm
+npm install @databuddy/sdk
+```
+
+```bash yarn
+yarn add @databuddy/sdk
+```
+
+```bash pnpm
+pnpm add @databuddy/sdk
+```
+
+```bash bun
+bun add @databuddy/sdk
+```
+</CodeGroup>
+
+## Databuddy Component
+
+The `<Databuddy />` component injects the tracking script into your app. It renders nothing to the DOM.
+
+### Next.js App Router
+
+```tsx app/layout.tsx
+import { Databuddy } from '@databuddy/sdk/react';
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en">
+      <body>
+        {children}
+        <Databuddy
+          trackWebVitals
+          trackErrors
+          trackScrollDepth
+        />
+      </body>
+    </html>
+  );
+}
+```
+
+<Note>
+The `clientId` is automatically detected from the `NEXT_PUBLIC_DATABUDDY_CLIENT_ID` environment variable.
+</Note>
+
+### Next.js Pages Router
+
+```tsx pages/_app.tsx
+import { Databuddy } from '@databuddy/sdk/react';
+import type { AppProps } from 'next/app';
+
+export default function App({ Component, pageProps }: AppProps) {
+  return (
+    <>
+      <Component {...pageProps} />
+      <Databuddy
+        trackWebVitals
+        trackErrors
+      />
+    </>
+  );
+}
+```
+
+### React (Vite / CRA)
+
+```tsx src/main.tsx
+import { Databuddy } from '@databuddy/sdk/react';
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import App from './App';
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <App />
+    <Databuddy
+      clientId="your-client-id"
+      trackWebVitals
+      trackErrors
+    />
+  </StrictMode>
+);
+```
+
+## Component Props
+
+All [configuration options](/sdk/configuration) are available as props:
+
+```tsx
+<Databuddy
+  clientId="your-client-id"              // Auto-detected from env
+  apiUrl="https://basket.databuddy.cc"   // Custom API endpoint
+  
+  // Automatic tracking features
+  trackWebVitals={true}                   // Core Web Vitals
+  trackErrors={true}                      // JavaScript errors  
+  trackScrollDepth={true}                 // Scroll engagement
+  trackOutgoingLinks={true}               // External links
+  trackInteractions={true}                // Click interactions
+  trackAttributes={true}                  // data-* attributes
+  
+  // Performance & optimization
+  samplingRate={0.5}                      // Track 50% of sessions
+  enableBatching={true}                   // Batch events (default)
+  batchSize={10}                          // Events per batch
+  batchTimeout={2000}                     // Flush interval (ms)
+  
+  // Privacy controls
+  disabled={!userConsent}                 // Disable tracking
+  skipPatterns={['/admin/**']}            // Ignore patterns
+  maskPatterns={['/users/*']}             // Mask sensitive URLs
+  
+  // Debugging
+  debug={process.env.NODE_ENV === 'development'}
+/>
+```
+
+## Tracking Functions
+
+Import tracking functions from the core SDK:
+
+```typescript
+import { track, flush, clear } from '@databuddy/sdk';
+```
+
+### Track Custom Events
+
+```tsx
+import { track } from '@databuddy/sdk';
+
+function CheckoutButton() {
+  const handleClick = () => {
+    track('checkout_started', {
+      cartValue: 99.99,
+      itemCount: 3,
+      currency: 'USD'
+    });
+  };
+  
+  return <button onClick={handleClick}>Checkout</button>;
+}
+```
+
+### Track Component Events
+
+```tsx
+import { track } from '@databuddy/sdk';
+import { useEffect } from 'react';
+
+function PricingPage() {
+  useEffect(() => {
+    track('pricing_page_viewed', {
+      source: 'navigation',
+      timestamp: Date.now()
+    });
+  }, []);
+  
+  return <div>Pricing content...</div>;
+}
+```
+
+### Track Form Submissions
+
+```tsx
+import { track } from '@databuddy/sdk';
+import { useState } from 'react';
+
+function SignupForm() {
+  const [email, setEmail] = useState('');
+  
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    track('signup_form_submitted', {
+      formType: 'newsletter',
+      source: 'footer'
+    });
+    
+    // Submit form...
+  };
+  
+  return (
+    <form onSubmit={handleSubmit}>
+      <input
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+      />
+      <button type="submit">Subscribe</button>
+    </form>
+  );
+}
+```
+
+### Track Errors
+
+```tsx
+import { trackError } from '@databuddy/sdk';
+import { useEffect } from 'react';
+
+function DataFetcher() {
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const res = await fetch('/api/data');
+        if (!res.ok) throw new Error('Fetch failed');
+      } catch (error) {
+        trackError(error.message, {
+          error_type: error.name,
+          context: 'data_fetcher',
+          endpoint: '/api/data'
+        });
+      }
+    }
+    
+    fetchData();
+  }, []);
+  
+  return null;
+}
+```
+
+## Session Management
+
+### Get Tracking IDs
+
+```tsx
+import { getAnonymousId, getSessionId } from '@databuddy/sdk';
+import { useEffect, useState } from 'react';
+
+function UserProfile() {
+  const [anonId, setAnonId] = useState<string | null>(null);
+  
+  useEffect(() => {
+    setAnonId(getAnonymousId());
+  }, []);
+  
+  return <div>Anonymous ID: {anonId}</div>;
+}
+```
+
+### Clear Session on Logout
+
+```tsx
+import { clear } from '@databuddy/sdk';
+import { useRouter } from 'next/navigation';
+
+function LogoutButton() {
+  const router = useRouter();
+  
+  const handleLogout = async () => {
+    // Clear tracking session
+    clear();
+    
+    // Clear auth session
+    await fetch('/api/logout', { method: 'POST' });
+    
+    router.push('/login');
+  };
+  
+  return <button onClick={handleLogout}>Logout</button>;
+}
+```
+
+### Cross-Domain Links
+
+```tsx
+import { getTrackingParams } from '@databuddy/sdk';
+
+function ExternalLink({ href, children }) {
+  const params = getTrackingParams();
+  const url = `${href}${params ? `?${params}` : ''}`;
+  
+  return <a href={url}>{children}</a>;
+}
+
+// Usage
+<ExternalLink href="https://shop.example.com">
+  Visit Shop
+</ExternalLink>
+```
+
+## Feature Flags
+
+<Note>
+Feature flags require the `FlagsProvider` wrapper component.
+</Note>
+
+### FlagsProvider Setup
+
+```tsx app/layout.tsx
+import { Databuddy } from '@databuddy/sdk/react';
+import { FlagsProvider } from '@databuddy/sdk/react';
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en">
+      <body>
+        <FlagsProvider
+          clientId="your-client-id"
+          user={{
+            userId: '12345',
+            email: 'user@example.com'
+          }}
+        >
+          {children}
+        </FlagsProvider>
+        <Databuddy trackWebVitals />
+      </body>
+    </html>
+  );
+}
+```
+
+### useFlag Hook
+
+Get a feature flag's full state:
+
+```tsx
+import { useFlag } from '@databuddy/sdk/react';
+
+function NewFeature() {
+  const flag = useFlag('new-checkout-flow');
+  
+  if (flag.loading) {
+    return <Skeleton />;
+  }
+  
+  if (!flag.on) {
+    return <OldCheckout />;
+  }
+  
+  return <NewCheckout variant={flag.variant} />;
+}
+```
+
+### useFeature Hook
+
+Simplified feature check:
+
+```tsx
+import { useFeature } from '@databuddy/sdk/react';
+
+function DarkModeToggle() {
+  const darkMode = useFeature('dark-mode');
+  
+  if (darkMode.loading) return null;
+  
+  return (
+    <div className={darkMode.on ? 'dark' : 'light'}>
+      {/* Content */}
+    </div>
+  );
+}
+```
+
+### useFeatureOn Hook
+
+Boolean-only check with default value (SSR-safe):
+
+```tsx
+import { useFeatureOn } from '@databuddy/sdk/react';
+
+function BetaBanner() {
+  const showBanner = useFeatureOn('beta-banner', false);
+  
+  if (!showBanner) return null;
+  
+  return <div>Try our new beta features!</div>;
+}
+```
+
+### useFlagValue Hook
+
+Get typed flag values:
+
+```tsx
+import { useFlagValue } from '@databuddy/sdk/react';
+
+function ItemList() {
+  const maxItems = useFlagValue<number>('max-items', 10);
+  const theme = useFlagValue<'light' | 'dark'>('theme', 'light');
+  
+  return <div>Showing {maxItems} items in {theme} mode</div>;
+}
+```
+
+### useVariant Hook
+
+A/B testing with variants:
+
+```tsx
+import { useVariant } from '@databuddy/sdk/react';
+
+function CheckoutFlow() {
+  const variant = useVariant('checkout-experiment');
+  
+  switch (variant) {
+    case 'control':
+      return <OldCheckout />;
+    case 'treatment-a':
+      return <NewCheckoutA />;
+    case 'treatment-b':
+      return <NewCheckoutB />;
+    default:
+      return <DefaultCheckout />;
+  }
+}
+```
+
+## Advanced Usage
+
+### Conditional Rendering
+
+```tsx
+import { Databuddy } from '@databuddy/sdk/react';
+
+function App() {
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  const hasConsent = useUserConsent();
+  
+  return (
+    <>
+      <YourApp />
+      
+      {/* Only load in production with consent */}
+      {!isDevelopment && hasConsent && (
+        <Databuddy
+          trackWebVitals
+          trackErrors
+        />
+      )}
+    </>
+  );
+}
+```
+
+### Dynamic Configuration
+
+```tsx
+import { Databuddy } from '@databuddy/sdk/react';
+import { useEffect, useState } from 'react';
+
+function App() {
+  const [config, setConfig] = useState(null);
+  
+  useEffect(() => {
+    fetch('/api/analytics-config')
+      .then(res => res.json())
+      .then(setConfig);
+  }, []);
+  
+  if (!config) return <div>Loading...</div>;
+  
+  return (
+    <>
+      <YourApp />
+      <Databuddy {...config} />
+    </>
+  );
+}
+```
+
+### Flush Before Navigation
+
+```tsx
+import { track, flush } from '@databuddy/sdk';
+import { useRouter } from 'next/navigation';
+
+function ExternalLinkButton({ url }: { url: string }) {
+  const router = useRouter();
+  
+  const handleClick = () => {
+    track('external_link_clicked', { url });
+    
+    // Ensure event is sent before leaving
+    flush();
+    
+    setTimeout(() => {
+      window.location.href = url;
+    }, 100);
+  };
+  
+  return <button onClick={handleClick}>Visit External Site</button>;
+}
+```
+
+## TypeScript Support
+
+Full TypeScript support with intelligent autocomplete:
+
+```typescript
+import type { DatabuddyConfig, EventProperties } from '@databuddy/sdk';
+import { Databuddy } from '@databuddy/sdk/react';
+
+const config: DatabuddyConfig = {
+  clientId: 'your-client-id',
+  trackWebVitals: true,
+  samplingRate: 0.5,
+};
+
+function App() {
+  return <Databuddy {...config} />;
+}
+
+// Type-safe event tracking
+const eventProps: EventProperties = {
+  plan: 'pro',
+  price: 29.99,
+  currency: 'USD'
+};
+
+track('subscription_created', eventProps);
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="/sdk/configuration">
+    See all available configuration options
+  </Card>
+  <Card title="JavaScript SDK" icon="js" href="/sdk/javascript">
+    Learn about vanilla JavaScript usage
+  </Card>
+  <Card title="Vue SDK" icon="vuejs" href="/sdk/vue">
+    Vue 3 composables and plugins
+  </Card>
+  <Card title="Node.js SDK" icon="server" href="/sdk/nodejs">
+    Server-side event tracking
+  </Card>
+</CardGroup>

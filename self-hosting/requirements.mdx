@@ -1,0 +1,250 @@
+---
+title: System Requirements
+description: Hardware and software requirements for self-hosting Databuddy
+---
+
+## Software Requirements
+
+### Runtime Environment
+
+<AccordionGroup>
+  <Accordion title="Node.js 20+ (Required)">
+    Databuddy requires Node.js version 20 or higher.
+
+    ```bash
+    node --version
+    # Should output v20.0.0 or higher
+    ```
+
+    **Installation:**
+    - macOS/Linux: Use [nvm](https://github.com/nvm-sh/nvm)
+    - Windows: Download from [nodejs.org](https://nodejs.org/)
+    - Docker: Node.js is included in container images
+  </Accordion>
+
+  <Accordion title="Bun 1.3.4+ (Recommended)">
+    Databuddy is optimized for Bun, which provides faster package management and runtime performance.
+
+    ```bash
+    bun --version
+    # Should output 1.3.4 or higher
+    ```
+
+    **Installation:**
+    ```bash
+    curl -fsSL https://bun.sh/install | bash
+    ```
+
+    While Node.js is required, using Bun as the package manager is highly recommended for development and production deployments.
+  </Accordion>
+</AccordionGroup>
+
+### Database Systems
+
+<CardGroup cols={2}>
+  <Card title="PostgreSQL 17" icon="database">
+    **Purpose:** User data, configuration, authentication
+    
+    **Minimum Version:** PostgreSQL 15
+    
+    **Recommended:** PostgreSQL 17
+    
+    Stores relational data including users, organizations, websites, API keys, and application configuration.
+  </Card>
+
+  <Card title="ClickHouse 25.5+" icon="chart-column">
+    **Purpose:** Analytics events and metrics
+    
+    **Minimum Version:** ClickHouse 24.0
+    
+    **Recommended:** ClickHouse 25.5.1 Alpine
+    
+    Stores high-volume time-series analytics data, web vitals, errors, and custom events.
+  </Card>
+</CardGroup>
+
+**Redis 7** (Required)
+- Caching layer for query results
+- Session storage
+- Rate limiting
+- Background job queues
+
+### Optional Components
+
+<AccordionGroup>
+  <Accordion title="Redpanda (Event Streaming)">
+    For high-scale deployments, Databuddy can use Redpanda for event ingestion:
+
+    - Version: 25.2.9+
+    - Purpose: Buffer analytics events before ClickHouse ingestion
+    - Recommended for: 10M+ events/day
+
+    Redpanda is Kafka-compatible but lighter weight and easier to operate.
+  </Accordion>
+
+  <Accordion title="Docker & Docker Compose">
+    Docker simplifies deployment significantly:
+
+    - Docker Engine 20.10+
+    - Docker Compose v2.0+
+    
+    See our [Docker setup guide](/self-hosting/docker) for details.
+  </Accordion>
+</AccordionGroup>
+
+## Hardware Requirements
+
+Hardware needs vary based on your analytics volume. Here are recommended specifications:
+
+### Small Deployment
+
+**< 1 million events/day**
+
+<ResponseField name="CPU" type="4 cores" />
+<ResponseField name="RAM" type="8 GB" />
+<ResponseField name="Storage" type="100 GB SSD" />
+<ResponseField name="Network" type="100 Mbps" />
+
+**Example Use Case:** Small SaaS application, personal projects, staging environments
+
+### Medium Deployment
+
+**1-10 million events/day**
+
+<ResponseField name="CPU" type="8 cores" />
+<ResponseField name="RAM" type="16 GB" />
+<ResponseField name="Storage" type="500 GB SSD" />
+<ResponseField name="Network" type="1 Gbps" />
+
+**Example Use Case:** Growing SaaS products, e-commerce sites, content platforms
+
+### Large Deployment
+
+**10-100 million events/day**
+
+<ResponseField name="CPU" type="16+ cores" />
+<ResponseField name="RAM" type="32+ GB" />
+<ResponseField name="Storage" type="1+ TB NVMe SSD" />
+<ResponseField name="Network" type="10 Gbps" />
+
+**Example Use Case:** Enterprise applications, high-traffic platforms
+
+<Note>
+  For very large deployments (100M+ events/day), consider distributed ClickHouse clusters. Contact our team for architecture guidance.
+</Note>
+
+### Storage Considerations
+
+**ClickHouse Storage Estimates:**
+
+- Average event size: ~1-2 KB compressed
+- 1M events/day = ~1.5 GB/day = ~45 GB/month
+- 10M events/day = ~15 GB/day = ~450 GB/month
+
+**Data Retention:**
+
+```sql
+-- ClickHouse automatically handles TTL for older data
+-- Default retention periods:
+Events: 1 year
+Error spans: 90 days  
+Web vitals: 1 year
+Blocked traffic: 6 months
+```
+
+You can adjust TTL settings in your ClickHouse configuration.
+
+## Network Requirements
+
+### Ports
+
+Ensure these ports are accessible:
+
+| Service | Port | Protocol | Purpose |
+|---------|------|----------|----------|
+| PostgreSQL | 5432 | TCP | Database connections |
+| ClickHouse HTTP | 8123 | TCP | HTTP interface |
+| ClickHouse Native | 9000 | TCP | Native protocol |
+| Redis | 6379 | TCP | Cache connections |
+| API Server | 3001 | TCP | API endpoints |
+| Dashboard | 3000 | TCP | Web interface |
+
+### Firewall Rules
+
+<Steps>
+  <Step title="Allow application servers to databases">
+    Your API servers need access to PostgreSQL (5432), ClickHouse (8123, 9000), and Redis (6379).
+  </Step>
+  
+  <Step title="Expose API and Dashboard publicly">
+    Make ports 3000 (dashboard) and 3001 (API) accessible from the internet or your internal network.
+  </Step>
+  
+  <Step title="Restrict database access">
+    PostgreSQL, ClickHouse, and Redis should NOT be directly accessible from the public internet. Use firewalls or security groups to restrict access to application servers only.
+  </Step>
+</Steps>
+
+## Operating System
+
+Databuddy runs on any system supporting Node.js and Docker:
+
+- **Linux:** Ubuntu 22.04+, Debian 12+, RHEL 9+, Alpine Linux (recommended for containers)
+- **macOS:** macOS 12+ for development
+- **Windows:** Windows 10+ with WSL2 for development
+
+**Production Recommendation:** Ubuntu 22.04 LTS or 24.04 LTS
+
+## Cloud Provider Recommendations
+
+Databuddy works on any cloud provider or bare metal. Popular choices:
+
+<CardGroup cols={3}>
+  <Card title="AWS" icon="aws">
+    - EC2 for compute
+    - RDS for PostgreSQL
+    - ECS/EKS for containers
+  </Card>
+  
+  <Card title="Google Cloud" icon="google">
+    - Compute Engine
+    - Cloud SQL
+    - GKE for Kubernetes
+  </Card>
+  
+  <Card title="DigitalOcean" icon="digital-ocean">
+    - Droplets
+    - Managed PostgreSQL
+    - App Platform
+  </Card>
+</CardGroup>
+
+**Budget-Friendly Options:**
+- Hetzner Cloud
+- Linode/Akamai Cloud
+- OVHcloud
+
+## Development Requirements
+
+If you're contributing to Databuddy or running from source:
+
+```json
+{
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "bun@1.3.4"
+}
+```
+
+**Additional Tools:**
+- Git for version control
+- Turborepo (installed via Bun)
+- TypeScript 5.9+
+- Drizzle ORM for database migrations
+
+## Next Steps
+
+<Card title="Docker Setup" icon="docker" href="/self-hosting/docker">
+  Ready to deploy? Continue with our Docker setup guide.
+</Card>

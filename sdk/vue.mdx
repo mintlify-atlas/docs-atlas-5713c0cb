@@ -1,0 +1,594 @@
+---
+title: 'Vue SDK'
+description: 'Vue 3 composables and components for Databuddy analytics'
+icon: 'vuejs'
+---
+
+## Installation
+
+<CodeGroup>
+```bash npm
+npm install @databuddy/sdk
+```
+
+```bash yarn
+yarn add @databuddy/sdk
+```
+
+```bash pnpm
+pnpm add @databuddy/sdk
+```
+
+```bash bun
+bun add @databuddy/sdk
+```
+</CodeGroup>
+
+<Note>
+Requires Vue 3.0 or higher.
+</Note>
+
+## Databuddy Component
+
+The `<Databuddy />` component injects the tracking script into your Vue app.
+
+### Setup
+
+Register the component globally:
+
+```typescript src/main.ts
+import { createApp } from 'vue';
+import { Databuddy } from '@databuddy/sdk/vue';
+import App from './App.vue';
+
+const app = createApp(App);
+
+app.component('Databuddy', Databuddy);
+app.mount('#app');
+```
+
+### Usage in Root Component
+
+```vue App.vue
+<template>
+  <div id="app">
+    <RouterView />
+    
+    <Databuddy
+      client-id="your-client-id"
+      :track-web-vitals="true"
+      :track-errors="true"
+      :track-scroll-depth="true"
+    />
+  </div>
+</template>
+```
+
+<Note>
+Prop names use kebab-case in templates: `client-id`, `track-web-vitals`, etc.
+</Note>
+
+## Component Props
+
+All [configuration options](/sdk/configuration) are available as props:
+
+```vue
+<template>
+  <Databuddy
+    client-id="your-client-id"
+    api-url="https://basket.databuddy.cc"
+    
+    :track-web-vitals="true"
+    :track-errors="true"
+    :track-scroll-depth="true"
+    :track-outgoing-links="true"
+    :track-interactions="true"
+    :track-attributes="true"
+    
+    :sampling-rate="0.5"
+    :enable-batching="true"
+    :batch-size="10"
+    :batch-timeout="2000"
+    
+    :disabled="!userConsent"
+    :skip-patterns="['/admin/**']"
+    :mask-patterns="['/users/*']"
+    
+    :debug="isDevelopment"
+  />
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue';
+
+const userConsent = ref(true);
+const isDevelopment = import.meta.env.DEV;
+</script>
+```
+
+## Tracking Functions
+
+Import tracking functions from the core SDK:
+
+```typescript
+import { track, flush, clear } from '@databuddy/sdk';
+```
+
+### Track Custom Events
+
+```vue
+<template>
+  <button @click="handleCheckout">Checkout</button>
+</template>
+
+<script setup lang="ts">
+import { track } from '@databuddy/sdk';
+
+const handleCheckout = () => {
+  track('checkout_started', {
+    cartValue: 99.99,
+    itemCount: 3,
+    currency: 'USD'
+  });
+};
+</script>
+```
+
+### Track Page Views
+
+```vue
+<template>
+  <div>Pricing page content...</div>
+</template>
+
+<script setup lang="ts">
+import { track } from '@databuddy/sdk';
+import { onMounted } from 'vue';
+
+onMounted(() => {
+  track('pricing_page_viewed', {
+    source: 'navigation',
+    timestamp: Date.now()
+  });
+});
+</script>
+```
+
+### Track Form Submissions
+
+```vue
+<template>
+  <form @submit.prevent="handleSubmit">
+    <input v-model="email" type="email" placeholder="Email" />
+    <button type="submit">Subscribe</button>
+  </form>
+</template>
+
+<script setup lang="ts">
+import { track } from '@databuddy/sdk';
+import { ref } from 'vue';
+
+const email = ref('');
+
+const handleSubmit = () => {
+  track('signup_form_submitted', {
+    formType: 'newsletter',
+    source: 'footer'
+  });
+  
+  // Submit form...
+};
+</script>
+```
+
+### Track Errors
+
+```vue
+<script setup lang="ts">
+import { trackError } from '@databuddy/sdk';
+import { onMounted } from 'vue';
+
+onMounted(async () => {
+  try {
+    const res = await fetch('/api/data');
+    if (!res.ok) throw new Error('Fetch failed');
+  } catch (error) {
+    trackError(error.message, {
+      error_type: error.name,
+      context: 'data_fetcher',
+      endpoint: '/api/data'
+    });
+  }
+});
+</script>
+```
+
+## Session Management
+
+### Get Tracking IDs
+
+```vue
+<template>
+  <div>
+    <p>Anonymous ID: {{ anonId }}</p>
+    <p>Session ID: {{ sessionId }}</p>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { getAnonymousId, getSessionId } from '@databuddy/sdk';
+import { ref, onMounted } from 'vue';
+
+const anonId = ref<string | null>(null);
+const sessionId = ref<string | null>(null);
+
+onMounted(() => {
+  anonId.value = getAnonymousId();
+  sessionId.value = getSessionId();
+});
+</script>
+```
+
+### Clear Session on Logout
+
+```vue
+<template>
+  <button @click="handleLogout">Logout</button>
+</template>
+
+<script setup lang="ts">
+import { clear } from '@databuddy/sdk';
+import { useRouter } from 'vue-router';
+
+const router = useRouter();
+
+const handleLogout = async () => {
+  // Clear tracking session
+  clear();
+  
+  // Clear auth session
+  await fetch('/api/logout', { method: 'POST' });
+  
+  router.push('/login');
+};
+</script>
+```
+
+### Cross-Domain Links
+
+```vue
+<template>
+  <a :href="externalUrl">Visit Shop</a>
+</template>
+
+<script setup lang="ts">
+import { getTrackingParams } from '@databuddy/sdk';
+import { computed } from 'vue';
+
+const externalUrl = computed(() => {
+  const params = getTrackingParams();
+  return `https://shop.example.com${params ? `?${params}` : ''}`;
+});
+</script>
+```
+
+## Feature Flags
+
+### FlagsPlugin Setup
+
+```typescript src/main.ts
+import { createApp } from 'vue';
+import { createFlagsPlugin } from '@databuddy/sdk/vue';
+import App from './App.vue';
+
+const app = createApp(App);
+
+const flagsPlugin = createFlagsPlugin({
+  clientId: 'your-client-id',
+  user: {
+    userId: '12345',
+    email: 'user@example.com'
+  }
+});
+
+app.use(flagsPlugin);
+app.mount('#app');
+```
+
+### useFlag Composable
+
+Get a feature flag's full state:
+
+```vue
+<template>
+  <div v-if="flag.loading">
+    <Skeleton />
+  </div>
+  <div v-else-if="flag.on">
+    <NewCheckout :variant="flag.state.variant" />
+  </div>
+  <div v-else>
+    <OldCheckout />
+  </div>
+</template>
+
+<script setup lang="ts">
+import { useFlag } from '@databuddy/sdk/vue';
+
+const flag = useFlag('new-checkout-flow');
+</script>
+```
+
+### useBooleanFlag Composable
+
+Simple boolean check:
+
+```vue
+<template>
+  <div :class="darkMode ? 'dark' : 'light'">
+    <!-- Content -->
+  </div>
+</template>
+
+<script setup lang="ts">
+import { useBooleanFlag } from '@databuddy/sdk/vue';
+
+const darkMode = useBooleanFlag('dark-mode');
+</script>
+```
+
+### useFlags Composable
+
+Access the full flags context:
+
+```vue
+<template>
+  <div>
+    <button @click="handleRefresh">Refresh Flags</button>
+    <p>Flags ready: {{ flags.isReady }}</p>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { useFlags } from '@databuddy/sdk/vue';
+
+const flags = useFlags();
+
+const handleRefresh = async () => {
+  await flags.refresh();
+};
+</script>
+```
+
+## Composable Patterns
+
+### Custom Analytics Composable
+
+Create reusable tracking logic:
+
+```typescript composables/useAnalytics.ts
+import { track } from '@databuddy/sdk';
+import { onMounted, onUnmounted } from 'vue';
+
+export function usePageTracking(pageName: string) {
+  const startTime = Date.now();
+  
+  onMounted(() => {
+    track('page_view', {
+      pageName,
+      timestamp: startTime
+    });
+  });
+  
+  onUnmounted(() => {
+    const timeOnPage = Date.now() - startTime;
+    track('page_exit', {
+      pageName,
+      timeOnPage
+    });
+  });
+}
+
+// Usage in component
+import { usePageTracking } from '@/composables/useAnalytics';
+
+usePageTracking('pricing-page');
+```
+
+### Event Tracking Composable
+
+```typescript composables/useEventTracking.ts
+import { track } from '@databuddy/sdk';
+import type { EventProperties } from '@databuddy/sdk';
+
+export function useEventTracking() {
+  const trackClick = (element: string, properties?: EventProperties) => {
+    track('element_clicked', {
+      element,
+      ...properties
+    });
+  };
+  
+  const trackConversion = (type: string, value: number) => {
+    track('conversion', {
+      type,
+      value,
+      currency: 'USD'
+    });
+  };
+  
+  return {
+    trackClick,
+    trackConversion
+  };
+}
+```
+
+Usage:
+
+```vue
+<template>
+  <button @click="trackClick('cta_button', { location: 'hero' })">
+    Get Started
+  </button>
+</template>
+
+<script setup lang="ts">
+import { useEventTracking } from '@/composables/useEventTracking';
+
+const { trackClick } = useEventTracking();
+</script>
+```
+
+## Router Integration
+
+Track route changes automatically:
+
+```typescript src/main.ts
+import { createApp } from 'vue';
+import { createRouter, createWebHistory } from 'vue-router';
+import { track } from '@databuddy/sdk';
+import App from './App.vue';
+
+const router = createRouter({
+  history: createWebHistory(),
+  routes: [/* your routes */]
+});
+
+// Track page views on navigation
+router.afterEach((to, from) => {
+  track('page_view', {
+    path: to.path,
+    name: to.name,
+    fromPath: from.path
+  });
+});
+
+const app = createApp(App);
+app.use(router);
+app.mount('#app');
+```
+
+## Advanced Usage
+
+### Conditional Rendering
+
+```vue
+<template>
+  <div id="app">
+    <RouterView />
+    
+    <Databuddy
+      v-if="shouldTrack"
+      client-id="your-client-id"
+      :track-web-vitals="true"
+    />
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed } from 'vue';
+
+const isDevelopment = import.meta.env.DEV;
+const userConsent = ref(true);
+
+const shouldTrack = computed(() => {
+  return !isDevelopment && userConsent.value;
+});
+</script>
+```
+
+### Reactive Configuration
+
+```vue
+<template>
+  <Databuddy
+    v-if="config"
+    :client-id="config.clientId"
+    :track-web-vitals="config.trackWebVitals"
+    :debug="config.debug"
+  />
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
+
+const config = ref(null);
+
+onMounted(async () => {
+  const res = await fetch('/api/analytics-config');
+  config.value = await res.json();
+});
+</script>
+```
+
+### Flush Before Navigation
+
+```vue
+<template>
+  <button @click="handleExternalLink">Visit External Site</button>
+</template>
+
+<script setup lang="ts">
+import { track, flush } from '@databuddy/sdk';
+
+const handleExternalLink = () => {
+  const url = 'https://example.com';
+  
+  track('external_link_clicked', { url });
+  
+  // Ensure event is sent before leaving
+  flush();
+  
+  setTimeout(() => {
+    window.location.href = url;
+  }, 100);
+};
+</script>
+```
+
+## TypeScript Support
+
+Full TypeScript support with type inference:
+
+```vue
+<script setup lang="ts">
+import type { DatabuddyConfig, EventProperties } from '@databuddy/sdk';
+import { track } from '@databuddy/sdk';
+import { ref } from 'vue';
+
+const config: DatabuddyConfig = {
+  clientId: 'your-client-id',
+  trackWebVitals: true,
+  samplingRate: 0.5,
+};
+
+// Type-safe event properties
+const trackPurchase = (price: number, currency: string) => {
+  const properties: EventProperties = {
+    price,
+    currency,
+    timestamp: Date.now()
+  };
+  
+  track('purchase_completed', properties);
+};
+</script>
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="/sdk/configuration">
+    See all available configuration options
+  </Card>
+  <Card title="React SDK" icon="react" href="/sdk/react">
+    React hooks and components
+  </Card>
+  <Card title="JavaScript SDK" icon="js" href="/sdk/javascript">
+    Vanilla JavaScript usage
+  </Card>
+  <Card title="Node.js SDK" icon="server" href="/sdk/nodejs">
+    Server-side event tracking
+  </Card>
+</CardGroup>

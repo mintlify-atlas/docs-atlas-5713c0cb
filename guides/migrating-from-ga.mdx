@@ -1,0 +1,317 @@
+---
+title: Migrating from Google Analytics
+description: Step-by-step guide to migrate from Google Analytics to Databuddy and maintain your analytics data
+---
+
+## Why migrate to Databuddy?
+
+Databuddy offers a privacy-first alternative to Google Analytics with:
+
+- **Full data ownership** - Your analytics data stays in your control
+- **GDPR compliant** - No cookie banners required for basic tracking
+- **Lightweight SDK** - Minimal performance impact on your site
+- **Real-time analytics** - Instant insights without sampling
+- **Custom events** - Track exactly what matters to your business
+- **Flexible integrations** - Connect with Stripe, webhooks, and more
+
+## Migration checklist
+
+Before you begin, ensure you have:
+
+<Check>Access to your Google Analytics account</Check>
+<Check>Admin access to your website</Check>
+<Check>A Databuddy account (sign up at [databuddy.cc](https://databuddy.cc))</Check>
+<Check>Your Databuddy client ID from the dashboard</Check>
+
+## Step-by-step migration
+
+<Steps>
+  <Step title="Install the Databuddy SDK">
+    Remove Google Analytics and install Databuddy. For Next.js apps:
+
+    ```bash
+    npm install @databuddy/sdk
+    ```
+
+    Add your client ID to `.env.local`:
+
+    ```bash
+    NEXT_PUBLIC_DATABUDDY_CLIENT_ID=your-client-id-here
+    ```
+
+    Add the tracking component to your root layout:
+
+    ```tsx app/layout.tsx
+    import { Databuddy } from '@databuddy/sdk/react';
+
+    export default function RootLayout({ children }) {
+      return (
+        <html>
+          <body>
+            <Databuddy
+              trackWebVitals
+              trackErrors
+              trackScrollDepth
+            />
+            {children}
+          </body>
+        </html>
+      );
+    }
+    ```
+
+    For other frameworks, see the [installation guide](/quickstart).
+  </Step>
+
+  <Step title="Map Google Analytics events to Databuddy">
+    Databuddy automatically tracks:
+
+    | Google Analytics | Databuddy Equivalent |
+    |-----------------|---------------------|
+    | Pageviews | `screen_view` (automatic) |
+    | Session duration | Tracked automatically |
+    | Bounce rate | `is_bounce` property |
+    | User engagement | `time_on_page`, `scroll_depth` |
+
+    For custom events, replace `gtag()` calls:
+
+    ```tsx
+    // Before (Google Analytics)
+    gtag('event', 'purchase', {
+      transaction_id: '12345',
+      value: 29.99,
+      currency: 'USD'
+    });
+
+    // After (Databuddy)
+    import { track } from '@databuddy/sdk';
+
+    track('purchase', {
+      transaction_id: '12345',
+      value: 29.99,
+      currency: 'USD'
+    });
+    ```
+  </Step>
+
+  <Step title="Configure advanced tracking features">
+    Enable features that replace GA4 capabilities:
+
+    ```tsx
+    <Databuddy
+      clientId="your-client-id"
+      // Performance monitoring (replaces GA Core Web Vitals)
+      trackWebVitals
+      trackPerformance
+      
+      // Engagement tracking
+      trackScrollDepth
+      trackInteractions
+      trackOutgoingLinks
+      
+      // Error monitoring
+      trackErrors
+      
+      // Custom filtering
+      filter={(event) => {
+        // Skip admin pages (like GA filters)
+        return !event.path?.includes('/admin');
+      }}
+      
+      // Path masking (replace dynamic IDs)
+      maskPatterns={['/users/*', '/orders/*']}
+    />
+    ```
+  </Step>
+
+  <Step title="Set up revenue tracking">
+    If you're tracking ecommerce with Google Analytics, Databuddy integrates directly with payment providers:
+
+    **Stripe Integration:**
+    
+    Databuddy automatically captures revenue events from Stripe webhooks. Configure your webhook in Settings → Revenue Tracking.
+
+    Supported events:
+    - Payment succeeded/failed
+    - Subscription created/updated/canceled
+    - Refunds processed
+
+    **Manual tracking:**
+
+    ```tsx
+    import { track } from '@databuddy/sdk';
+
+    track('purchase', {
+      transaction_id: payment.id,
+      amount: payment.amount,
+      currency: payment.currency,
+      product_name: 'Pro Plan'
+    });
+    ```
+
+    See the [webhooks guide](/guides/webhooks) for payment provider setup.
+  </Step>
+
+  <Step title="Test your implementation">
+    Verify tracking is working:
+
+    1. Open your website in a new incognito window
+    2. Navigate to a few pages and trigger some events
+    3. Check the Databuddy dashboard (events appear in real-time)
+    4. Verify custom events are appearing with correct properties
+
+    Enable debug mode during testing:
+
+    ```tsx
+    <Databuddy debug />
+    ```
+
+    Check browser console for tracking logs.
+  </Step>
+
+  <Step title="Run both tools in parallel (optional)">
+    You can run Databuddy alongside Google Analytics during a transition period:
+
+    ```tsx
+    import { Databuddy } from '@databuddy/sdk/react';
+    import Script from 'next/script';
+
+    export default function RootLayout({ children }) {
+      return (
+        <html>
+          <body>
+            {/* Keep GA4 running */}
+            <Script
+              src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"
+              strategy="afterInteractive"
+            />
+            
+            {/* Add Databuddy */}
+            <Databuddy />
+            
+            {children}
+          </body>
+        </html>
+      );
+    }
+    ```
+
+    Compare data for 1-2 weeks before removing Google Analytics.
+  </Step>
+
+  <Step title="Remove Google Analytics">
+    Once you're confident in Databuddy:
+
+    1. Remove all `gtag()` and Google Analytics scripts
+    2. Delete GA environment variables
+    3. Remove GA cookie consent notices (Databuddy doesn't require them)
+    4. Archive GA data if needed for historical reference
+
+    Your site will be lighter and faster without the GA script (≈45KB savings).
+  </Step>
+</Steps>
+
+## Feature comparison
+
+<AccordionGroup>
+  <Accordion title="Real-time reporting">
+    **Google Analytics:** Delayed reporting with up to 24-48 hour latency
+    
+    **Databuddy:** All events appear instantly in the dashboard
+  </Accordion>
+
+  <Accordion title="Data sampling">
+    **Google Analytics:** Samples data on high-traffic sites (GA4 standard tier)
+    
+    **Databuddy:** Never samples data - every event is counted
+  </Accordion>
+
+  <Accordion title="User privacy">
+    **Google Analytics:** Requires cookie consent in EU/GDPR regions
+    
+    **Databuddy:** Privacy-first design, no cookie banners needed for basic tracking
+  </Accordion>
+
+  <Accordion title="Custom events">
+    **Google Analytics:** Limited to 500 event names, complex setup
+    
+    **Databuddy:** Unlimited custom events with simple `track()` API
+  </Accordion>
+
+  <Accordion title="Session tracking">
+    **Google Analytics:** 30-minute session timeout (configurable)
+    
+    **Databuddy:** 30-minute session timeout with automatic renewal
+  </Accordion>
+
+  <Accordion title="Revenue tracking">
+    **Google Analytics:** Requires manual event implementation
+    
+    **Databuddy:** Direct Stripe/Paddle webhook integration + manual tracking
+  </Accordion>
+</AccordionGroup>
+
+## Common migration questions
+
+<AccordionGroup>
+  <Accordion title="Can I import historical Google Analytics data?">
+    Databuddy focuses on forward-looking analytics. We recommend:
+    
+    - Keep GA active for historical reference
+    - Export key reports from GA before switching
+    - Start fresh with Databuddy for cleaner data architecture
+    
+    Historical data import is not currently supported.
+  </Accordion>
+
+  <Accordion title="How do I track the same user across domains?">
+    Use cross-domain tracking with URL parameters:
+
+    ```tsx
+    import { getTrackingParams } from '@databuddy/sdk';
+
+    const trackingParams = getTrackingParams();
+    const url = `https://other-domain.com?${trackingParams}`;
+    ```
+
+    The tracking IDs (`anonId` and `sessionId`) will be preserved across domains.
+  </Accordion>
+
+  <Accordion title="Does Databuddy work with Google Tag Manager?">
+    Not directly. Databuddy uses a lightweight SDK approach instead of a tag manager.
+    
+    Benefits:
+    - Smaller bundle size
+    - Type-safe event tracking
+    - Better developer experience
+    
+    You can remove GTM entirely when migrating to Databuddy.
+  </Accordion>
+
+  <Accordion title="What about GA4's machine learning features?">
+    Databuddy focuses on accurate, real-time reporting rather than predictive analytics.
+    
+    We provide:
+    - Raw, unsampled data
+    - Custom SQL queries for analysis
+    - API access for building your own ML models
+    - Export capabilities for data science workflows
+  </Accordion>
+</AccordionGroup>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Custom dashboards" icon="chart-line" href="/guides/custom-dashboards">
+    Create custom reports and visualizations
+  </Card>
+  <Card title="Webhooks" icon="webhook" href="/guides/webhooks">
+    Set up payment and event webhooks
+  </Card>
+  <Card title="API Reference" icon="code" href="/api-reference">
+    Explore the full SDK capabilities
+  </Card>
+  <Card title="Troubleshooting" icon="wrench" href="/guides/troubleshooting">
+    Common issues and debugging tips
+  </Card>
+</CardGroup>

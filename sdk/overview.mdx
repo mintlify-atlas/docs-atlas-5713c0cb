@@ -1,0 +1,177 @@
+---
+title: 'SDK Overview'
+description: 'Privacy-first analytics SDK for web, mobile, and server-side tracking'
+icon: 'code'
+---
+
+The Databuddy SDK provides a complete solution for tracking user behavior and custom events across all your platforms. Built with privacy and performance in mind.
+
+## Features
+
+<CardGroup cols={2}>
+  <Card title="Privacy-First" icon="shield-halved">
+    No cookies, respects DNT, compliant with GDPR/CCPA out of the box
+  </Card>
+  <Card title="Lightweight" icon="feather">
+    < 5KB gzipped browser bundle with zero dependencies
+  </Card>
+  <Card title="Framework Support" icon="layer-group">
+    First-class support for React, Vue, Next.js, and vanilla JS
+  </Card>
+  <Card title="Server-Side" icon="server">
+    Node.js SDK for backend tracking and API events
+  </Card>
+  <Card title="Auto-Tracking" icon="wand-magic-sparkles">
+    Automatic page views, web vitals, errors, and scroll depth
+  </Card>
+  <Card title="Type-Safe" icon="check-double">
+    Full TypeScript support with intelligent autocomplete
+  </Card>
+</CardGroup>
+
+## Quick Start
+
+<CodeGroup>
+```bash npm
+npm install @databuddy/sdk
+```
+
+```bash yarn
+yarn add @databuddy/sdk
+```
+
+```bash pnpm
+pnpm add @databuddy/sdk
+```
+
+```bash bun
+bun add @databuddy/sdk
+```
+</CodeGroup>
+
+## Platform Guides
+
+<CardGroup cols={2}>
+  <Card title="JavaScript" icon="js" href="/sdk/javascript">
+    Vanilla JavaScript for any web project
+  </Card>
+  <Card title="React" icon="react" href="/sdk/react">
+    React hooks and components for Next.js and React apps
+  </Card>
+  <Card title="Vue" icon="vuejs" href="/sdk/vue">
+    Vue composables and plugins for Vue 3 apps
+  </Card>
+  <Card title="Node.js" icon="node" href="/sdk/nodejs">
+    Server-side tracking for APIs and backend services
+  </Card>
+</CardGroup>
+
+## Package Structure
+
+The SDK is published as a single package with multiple entry points:
+
+- `@databuddy/sdk` - Core browser SDK
+- `@databuddy/sdk/react` - React integration
+- `@databuddy/sdk/vue` - Vue integration
+- `@databuddy/sdk/node` - Node.js server-side SDK
+
+## Core Concepts
+
+### Events
+
+Track custom events with properties:
+
+```typescript
+import { track } from '@databuddy/sdk';
+
+track('button_clicked', {
+  buttonText: 'Get Started',
+  location: 'hero',
+  plan: 'pro'
+});
+```
+
+### Automatic Tracking
+
+Enable automatic tracking of common metrics:
+
+```tsx
+<Databuddy
+  trackWebVitals      // Core Web Vitals (LCP, FID, CLS)
+  trackErrors         // JavaScript errors
+  trackScrollDepth    // Scroll engagement
+  trackOutgoingLinks  // External link clicks
+/>
+```
+
+### Session Management
+
+Each user gets:
+- **Anonymous ID** - Persists across sessions (localStorage)
+- **Session ID** - Expires after 30 min of inactivity (sessionStorage)
+
+```typescript
+import { getAnonymousId, getSessionId } from '@databuddy/sdk';
+
+const anonId = getAnonymousId();
+const sessionId = getSessionId();
+```
+
+### Privacy Controls
+
+```tsx
+<Databuddy
+  disabled={!userConsent}           // Disable tracking entirely
+  samplingRate={0.5}                 // Track 50% of sessions
+  skipPatterns={['/admin/**']}       // Ignore admin pages
+  maskPatterns={['/users/*']}        // Mask sensitive URLs
+/>
+```
+
+## TypeScript Support
+
+The SDK is written in TypeScript with full type definitions:
+
+```typescript
+import type { 
+  DatabuddyConfig, 
+  EventProperties,
+  DatabuddyTracker 
+} from '@databuddy/sdk';
+
+// Type-safe event tracking
+const properties: EventProperties = {
+  plan: 'pro',
+  price: 29.99,
+  currency: 'USD'
+};
+
+track('subscription_created', properties);
+```
+
+## Browser Support
+
+- Chrome/Edge 90+
+- Firefox 88+
+- Safari 14+
+- iOS Safari 14+
+- Samsung Internet 15+
+
+The SDK uses modern browser APIs but gracefully degrades on older browsers.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/sdk/installation">
+    Detailed installation guide for all platforms
+  </Card>
+  <Card title="Configuration" icon="gear" href="/sdk/configuration">
+    Complete configuration options reference
+  </Card>
+  <Card title="React Guide" icon="react" href="/sdk/react">
+    Learn about React hooks and components
+  </Card>
+  <Card title="Node.js Guide" icon="server" href="/sdk/nodejs">
+    Server-side tracking for backend applications
+  </Card>
+</CardGroup>

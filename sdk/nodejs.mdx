@@ -1,0 +1,594 @@
+---
+title: 'Node.js SDK'
+description: 'Server-side event tracking for Node.js, Express, and serverless environments'
+icon: 'node'
+---
+
+## Installation
+
+<CodeGroup>
+```bash npm
+npm install @databuddy/sdk
+```
+
+```bash yarn
+yarn add @databuddy/sdk
+```
+
+```bash pnpm
+pnpm add @databuddy/sdk
+```
+
+```bash bun
+bun add @databuddy/sdk
+```
+</CodeGroup>
+
+## Quick Start
+
+```typescript
+import { Databuddy } from '@databuddy/sdk/node';
+
+const analytics = new Databuddy({
+  apiKey: process.env.DATABUDDY_API_KEY!,
+  websiteId: process.env.DATABUDDY_WEBSITE_ID,
+});
+
+// Track an event
+await analytics.track({
+  name: 'user_signup',
+  properties: {
+    plan: 'pro',
+    source: 'api'
+  }
+});
+
+// Flush before exit (important for serverless)
+await analytics.flush();
+```
+
+## Configuration
+
+### Constructor Options
+
+```typescript
+import { Databuddy } from '@databuddy/sdk/node';
+import type { DatabuddyConfig } from '@databuddy/sdk/node';
+
+const config: DatabuddyConfig = {
+  // Required
+  apiKey: 'dbdy_xxx',                      // Your API key
+  
+  // Optional defaults
+  websiteId: 'website-uuid',               // Default website scope
+  namespace: 'billing',                    // Logical grouping
+  source: 'backend',                       // Event source identifier
+  
+  // API configuration
+  apiUrl: 'https://basket.databuddy.cc',  // Custom endpoint
+  
+  // Batching (enabled by default)
+  enableBatching: true,                    // Auto-batch events
+  batchSize: 10,                           // Events per batch (max 100)
+  batchTimeout: 2000,                      // Flush interval (ms)
+  maxQueueSize: 1000,                      // Max queued events
+  
+  // Deduplication
+  enableDeduplication: true,               // Prevent duplicate events
+  maxDeduplicationCacheSize: 10000,        // Cache size
+  
+  // Debugging
+  debug: false,                            // Enable console logging
+  logger: customLogger,                    // Custom logger instance
+  
+  // Middleware
+  middleware: [/* transform functions */], // Event transformations
+};
+
+const analytics = new Databuddy(config);
+```
+
+## Tracking Events
+
+### Basic Event Tracking
+
+```typescript
+await analytics.track({
+  name: 'user_signup',
+  properties: {
+    plan: 'pro',
+    price: 29.99,
+    source: 'landing_page'
+  }
+});
+```
+
+### With User Identification
+
+```typescript
+await analytics.track({
+  name: 'purchase_completed',
+  anonymousId: 'user-anon-id',
+  sessionId: 'session-id',
+  properties: {
+    orderId: 'order-123',
+    total: 99.99,
+    currency: 'USD'
+  }
+});
+```
+
+### With Event ID (Deduplication)
+
+```typescript
+import { randomUUID } from 'crypto';
+
+await analytics.track({
+  name: 'api_request',
+  eventId: randomUUID(), // Prevents duplicate events
+  properties: {
+    endpoint: '/api/users',
+    method: 'POST',
+    statusCode: 201
+  }
+});
+```
+
+### With Timestamp
+
+```typescript
+await analytics.track({
+  name: 'webhook_received',
+  timestamp: Date.now(),
+  properties: {
+    source: 'stripe',
+    event: 'payment_intent.succeeded'
+  }
+});
+```
+
+### Scoped to Website
+
+```typescript
+await analytics.track({
+  name: 'page_view',
+  websiteId: 'website-uuid',  // Override default
+  properties: {
+    path: '/pricing',
+    referrer: 'google.com'
+  }
+});
+```
+
+### With Namespace and Source
+
+```typescript
+await analytics.track({
+  name: 'payment_processed',
+  namespace: 'billing',      // Logical grouping
+  source: 'stripe_webhook',  // Event origin
+  properties: {
+    amount: 2999,
+    currency: 'usd'
+  }
+});
+```
+
+## Batch Operations
+
+### Manual Batching
+
+Send multiple events at once:
+
+```typescript
+await analytics.batch([
+  {
+    type: 'custom',
+    name: 'event_1',
+    properties: { foo: 'bar' }
+  },
+  {
+    type: 'custom',
+    name: 'event_2',
+    properties: { baz: 'qux' }
+  }
+]);
+```
+
+### Auto-Batching
+
+Events are automatically batched when enabled:
+
+```typescript
+const analytics = new Databuddy({
+  apiKey: process.env.DATABUDDY_API_KEY!,
+  enableBatching: true,  // Default
+  batchSize: 10,         // Send after 10 events
+  batchTimeout: 2000,    // Or after 2 seconds
+});
+
+// These events are queued and batched automatically
+await analytics.track({ name: 'event_1' });
+await analytics.track({ name: 'event_2' });
+await analytics.track({ name: 'event_3' });
+
+// Force send all queued events
+await analytics.flush();
+```
+
+## Flushing Events
+
+Critical for serverless environments to ensure events are sent:
+
+```typescript
+// Track events
+await analytics.track({ name: 'function_invoked' });
+
+// Flush before function exits
+await analytics.flush();
+```
+
+### Lambda Handler Example
+
+```typescript
+import { Databuddy } from '@databuddy/sdk/node';
+
+const analytics = new Databuddy({
+  apiKey: process.env.DATABUDDY_API_KEY!,
+});
+
+export const handler = async (event: any) => {
+  try {
+    await analytics.track({
+      name: 'lambda_invoked',
+      properties: {
+        functionName: process.env.AWS_LAMBDA_FUNCTION_NAME,
+        requestId: event.requestContext?.requestId
+      }
+    });
+    
+    // Your logic here...
+    
+    return { statusCode: 200, body: 'Success' };
+  } finally {
+    // Always flush before exit
+    await analytics.flush();
+  }
+};
+```
+
+## Global Properties
+
+Attach properties to all events:
+
+```typescript
+// Set global properties
+analytics.setGlobalProperties({
+  environment: 'production',
+  version: '1.0.0',
+  region: 'us-east-1'
+});
+
+// All events now include these properties
+await analytics.track({
+  name: 'api_request',
+  properties: { endpoint: '/users' }
+});
+// Sent as: { endpoint: '/users', environment: 'production', version: '1.0.0', region: 'us-east-1' }
+
+// Get current globals
+const globals = analytics.getGlobalProperties();
+
+// Clear all globals
+analytics.clearGlobalProperties();
+```
+
+## Middleware
+
+Transform or filter events before sending:
+
+```typescript
+import type { Middleware } from '@databuddy/sdk/node';
+
+// Add custom fields
+const enrichmentMiddleware: Middleware = (event) => {
+  return {
+    ...event,
+    properties: {
+      ...event.properties,
+      serverTimestamp: Date.now(),
+      nodeVersion: process.version
+    }
+  };
+};
+
+// Filter events
+const filterMiddleware: Middleware = (event) => {
+  // Drop test events in production
+  if (event.name?.includes('test') && process.env.NODE_ENV === 'production') {
+    return null; // Drop event
+  }
+  return event;
+};
+
+// Add to config
+const analytics = new Databuddy({
+  apiKey: process.env.DATABUDDY_API_KEY!,
+  middleware: [enrichmentMiddleware, filterMiddleware]
+});
+
+// Or add dynamically
+analytics.addMiddleware(enrichmentMiddleware);
+
+// Clear all middleware
+analytics.clearMiddleware();
+```
+
+## Error Handling
+
+```typescript
+const result = await analytics.track({
+  name: 'user_action',
+  properties: { action: 'click' }
+});
+
+if (!result.success) {
+  console.error('Failed to track event:', result.error);
+}
+```
+
+## Express Integration
+
+### Track API Requests
+
+```typescript
+import express from 'express';
+import { Databuddy } from '@databuddy/sdk/node';
+
+const app = express();
+const analytics = new Databuddy({
+  apiKey: process.env.DATABUDDY_API_KEY!,
+});
+
+// Middleware to track all requests
+app.use(async (req, res, next) => {
+  const start = Date.now();
+  
+  res.on('finish', async () => {
+    await analytics.track({
+      name: 'api_request',
+      properties: {
+        method: req.method,
+        path: req.path,
+        statusCode: res.statusCode,
+        duration: Date.now() - start,
+        userAgent: req.get('user-agent')
+      }
+    });
+  });
+  
+  next();
+});
+
+// Track specific endpoints
+app.post('/api/signup', async (req, res) => {
+  // Process signup...
+  
+  await analytics.track({
+    name: 'user_signup',
+    properties: {
+      plan: req.body.plan,
+      source: 'api'
+    }
+  });
+  
+  res.json({ success: true });
+});
+
+// Flush on server shutdown
+process.on('SIGTERM', async () => {
+  await analytics.flush();
+  process.exit(0);
+});
+```
+
+## Next.js API Routes
+
+```typescript pages/api/track.ts
+import { Databuddy } from '@databuddy/sdk/node';
+import type { NextApiRequest, NextApiResponse } from 'next';
+
+const analytics = new Databuddy({
+  apiKey: process.env.DATABUDDY_API_KEY!,
+});
+
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+  
+  const { eventName, properties } = req.body;
+  
+  const result = await analytics.track({
+    name: eventName,
+    properties,
+    anonymousId: req.cookies.anonId,
+  });
+  
+  // Flush for serverless
+  await analytics.flush();
+  
+  if (!result.success) {
+    return res.status(500).json({ error: result.error });
+  }
+  
+  return res.json({ success: true });
+}
+```
+
+## Logging
+
+### Built-in Logger
+
+```typescript
+const analytics = new Databuddy({
+  apiKey: process.env.DATABUDDY_API_KEY!,
+  debug: true, // Enable console logging
+});
+```
+
+### Custom Logger
+
+```typescript
+import type { Logger } from '@databuddy/sdk/node';
+import pino from 'pino';
+
+const pinoLogger = pino();
+
+const customLogger: Logger = {
+  debug: (msg, meta) => pinoLogger.debug(meta, msg),
+  info: (msg, meta) => pinoLogger.info(meta, msg),
+  warn: (msg, meta) => pinoLogger.warn(meta, msg),
+  error: (msg, meta) => pinoLogger.error(meta, msg),
+};
+
+const analytics = new Databuddy({
+  apiKey: process.env.DATABUDDY_API_KEY!,
+  logger: customLogger,
+});
+```
+
+## Deduplication
+
+Prevent duplicate events using event IDs:
+
+```typescript
+import { randomUUID } from 'crypto';
+
+const eventId = randomUUID();
+
+// First attempt
+await analytics.track({
+  name: 'payment_processed',
+  eventId,
+  properties: { amount: 1000 }
+});
+
+// Duplicate (will be dropped)
+await analytics.track({
+  name: 'payment_processed',
+  eventId, // Same ID - event dropped
+  properties: { amount: 1000 }
+});
+
+// Check cache size
+const cacheSize = analytics.getDeduplicationCacheSize();
+
+// Clear cache
+analytics.clearDeduplicationCache();
+```
+
+## TypeScript Support
+
+Full TypeScript definitions:
+
+```typescript
+import { Databuddy } from '@databuddy/sdk/node';
+import type {
+  DatabuddyConfig,
+  CustomEventInput,
+  EventResponse,
+  BatchEventResponse,
+  Middleware,
+} from '@databuddy/sdk/node';
+
+const config: DatabuddyConfig = {
+  apiKey: process.env.DATABUDDY_API_KEY!,
+};
+
+const analytics = new Databuddy(config);
+
+const event: CustomEventInput = {
+  name: 'user_action',
+  properties: {
+    action: 'click',
+    value: 100
+  }
+};
+
+const result: EventResponse = await analytics.track(event);
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Always flush in serverless">
+    Serverless functions terminate immediately after returning. Always flush before exit:
+    
+    ```typescript
+    try {
+      await analytics.track({ name: 'event' });
+    } finally {
+      await analytics.flush();
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Use environment variables">
+    Never hardcode API keys. Use environment variables:
+    
+    ```typescript
+    const analytics = new Databuddy({
+      apiKey: process.env.DATABUDDY_API_KEY!,
+      websiteId: process.env.DATABUDDY_WEBSITE_ID,
+    });
+    ```
+  </Accordion>
+
+  <Accordion title="Enable batching for high volume">
+    For applications sending many events, enable batching to reduce network overhead:
+    
+    ```typescript
+    const analytics = new Databuddy({
+      apiKey: process.env.DATABUDDY_API_KEY!,
+      enableBatching: true,
+      batchSize: 50,
+      batchTimeout: 5000,
+    });
+    ```
+  </Accordion>
+
+  <Accordion title="Use event IDs for critical events">
+    For non-idempotent events (payments, signups), use event IDs:
+    
+    ```typescript
+    import { randomUUID } from 'crypto';
+    
+    await analytics.track({
+      name: 'payment_processed',
+      eventId: randomUUID(),
+      properties: { amount: 1000 }
+    });
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="/sdk/configuration">
+    Complete configuration options reference
+  </Card>
+  <Card title="JavaScript SDK" icon="js" href="/sdk/javascript">
+    Browser-side tracking
+  </Card>
+  <Card title="React SDK" icon="react" href="/sdk/react">
+    React hooks and components
+  </Card>
+  <Card title="API Reference" icon="book" href="/api-reference">
+    Full API documentation
+  </Card>
+</CardGroup>

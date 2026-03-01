@@ -1,0 +1,141 @@
+---
+title: 'Create Link'
+api: 'POST /links/create'
+description: 'Creates a new short link with optional custom slug and device targeting'
+---
+
+## Authentication
+
+Requires API key with `write:links` scope.
+
+## Request Body
+
+<ParamField body="organizationId" type="string" required>
+  Organization ID to create the link under
+</ParamField>
+
+<ParamField body="name" type="string" required>
+  Display name for the link (max 255 characters)
+</ParamField>
+
+<ParamField body="targetUrl" type="string" required>
+  Destination URL (must be absolute HTTP/HTTPS URL)
+</ParamField>
+
+<ParamField body="slug" type="string">
+  Custom slug (3-50 characters, alphanumeric, hyphens, underscores). Auto-generated if not provided
+</ParamField>
+
+<ParamField body="expiresAt" type="string">
+  ISO 8601 expiration date. Link redirects to `expiredRedirectUrl` after this time
+</ParamField>
+
+<ParamField body="expiredRedirectUrl" type="string">
+  URL to redirect to after expiration
+</ParamField>
+
+<ParamField body="ogTitle" type="string">
+  Open Graph title for link previews (max 200 characters)
+</ParamField>
+
+<ParamField body="ogDescription" type="string">
+  Open Graph description (max 500 characters)
+</ParamField>
+
+<ParamField body="ogImageUrl" type="string">
+  Open Graph image URL
+</ParamField>
+
+<ParamField body="ogVideoUrl" type="string">
+  Open Graph video URL
+</ParamField>
+
+<ParamField body="iosUrl" type="string">
+  iOS-specific destination URL (for device targeting)
+</ParamField>
+
+<ParamField body="androidUrl" type="string">
+  Android-specific destination URL (for device targeting)
+</ParamField>
+
+<ParamField body="externalId" type="string">
+  Your external identifier for this link (max 255 characters)
+</ParamField>
+
+## Response
+
+<ResponseField name="id" type="string">
+  Unique link identifier
+</ResponseField>
+
+<ResponseField name="slug" type="string">
+  Generated or custom slug. Full URL is `https://dby.to/{slug}`
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Display name
+</ResponseField>
+
+<ResponseField name="targetUrl" type="string">
+  Destination URL
+</ResponseField>
+
+<ResponseField name="organizationId" type="string">
+  Parent organization ID
+</ResponseField>
+
+<ResponseField name="createdBy" type="string">
+  User ID that created the link
+</ResponseField>
+
+<ResponseField name="createdAt" type="string">
+  ISO 8601 timestamp of creation
+</ResponseField>
+
+## Example Request
+
+```bash
+curl -X POST https://api.databuddy.cc/links/create \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "organizationId": "org_abc123",
+    "name": "Product Launch",
+    "targetUrl": "https://example.com/products/new",
+    "slug": "launch",
+    "ogTitle": "Check out our new product!",
+    "ogDescription": "The best product launch of 2024",
+    "ogImageUrl": "https://example.com/og-image.png"
+  }'
+```
+
+## Example Response
+
+```json
+{
+  "id": "lnk_xyz123",
+  "slug": "launch",
+  "name": "Product Launch",
+  "targetUrl": "https://example.com/products/new",
+  "organizationId": "org_abc123",
+  "createdBy": "usr_456",
+  "expiresAt": null,
+  "expiredRedirectUrl": null,
+  "ogTitle": "Check out our new product!",
+  "ogDescription": "The best product launch of 2024",
+  "ogImageUrl": "https://example.com/og-image.png",
+  "ogVideoUrl": null,
+  "iosUrl": null,
+  "androidUrl": null,
+  "externalId": null,
+  "createdAt": "2024-03-01T17:00:00Z",
+  "updatedAt": "2024-03-01T17:00:00Z"
+}
+```
+
+## Short URL
+
+Your link is now accessible at:
+```
+https://dby.to/launch
+```

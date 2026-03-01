@@ -1,0 +1,198 @@
+---
+title: 'Track Event'
+api: 'POST /track'
+description: 'Send custom events to track user actions and behaviors'
+---
+
+The track endpoint allows you to send custom events with optional properties to track specific user actions and behaviors in your application.
+
+## Authentication
+
+This endpoint supports two authentication methods:
+
+1. **API Key**: Include your API key in the `Authorization` header. The API key must have the `track:events` scope.
+2. **Website ID**: Pass `website_id` as a query parameter for client-side tracking.
+
+## Request
+
+### Headers
+
+<ParamField header="Authorization" type="string" optional>
+  Bearer token with your API key (required if not using website_id)
+</ParamField>
+
+<ParamField header="Content-Type" type="string" required>
+  Must be `application/json`
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="website_id" type="string" optional>
+  UUID of the website. Required if not using API key authentication.
+</ParamField>
+
+### Body Parameters
+
+You can send either a single event object or an array of event objects.
+
+<ParamField body="name" type="string" required>
+  Name of the event (1-256 characters)
+</ParamField>
+
+<ParamField body="namespace" type="string" optional>
+  Namespace to organize events (max 64 characters)
+</ParamField>
+
+<ParamField body="timestamp" type="number | string | date" optional>
+  Event timestamp. Accepts Unix timestamp (ms), ISO date string, or Date object. Defaults to current time.
+</ParamField>
+
+<ParamField body="properties" type="object" optional>
+  Custom properties as key-value pairs. Can contain any JSON-serializable data.
+</ParamField>
+
+<ParamField body="anonymousId" type="string" optional>
+  Anonymous user identifier (max 256 characters)
+</ParamField>
+
+<ParamField body="sessionId" type="string" optional>
+  Session identifier (max 256 characters)
+</ParamField>
+
+<ParamField body="websiteId" type="uuid" optional>
+  UUID of the website. Can be specified per event in batch requests.
+</ParamField>
+
+<ParamField body="source" type="string" optional>
+  Source of the event (max 64 characters)
+</ParamField>
+
+## Response
+
+<ResponseField name="status" type="string">
+  Status of the request: `success` or `error`
+</ResponseField>
+
+<ResponseField name="type" type="string">
+  Type of event processed: `custom_event`
+</ResponseField>
+
+<ResponseField name="count" type="number">
+  Number of events successfully processed
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Error message (only present when status is `error`)
+</ResponseField>
+
+## Examples
+
+### Single Event
+
+```bash
+curl -X POST https://api.databuddy.io/track \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "button_clicked",
+    "namespace": "ui",
+    "properties": {
+      "button_id": "signup",
+      "page": "/pricing"
+    },
+    "anonymousId": "user-123",
+    "sessionId": "session-456"
+  }'
+```
+
+```json Response
+{
+  "status": "success",
+  "type": "custom_event",
+  "count": 1
+}
+```
+
+### Multiple Events
+
+```bash
+curl -X POST https://api.databuddy.io/track \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '[
+    {
+      "name": "page_viewed",
+      "properties": {
+        "path": "/dashboard"
+      }
+    },
+    {
+      "name": "feature_used",
+      "namespace": "product",
+      "properties": {
+        "feature": "export",
+        "format": "csv"
+      }
+    }
+  ]'
+```
+
+```json Response
+{
+  "status": "success",
+  "type": "custom_event",
+  "count": 2
+}
+```
+
+### With Website ID (Client-Side)
+
+```bash
+curl -X POST https://api.databuddy.io/track?website_id=550e8400-e29b-41d4-a716-446655440000 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "video_played",
+    "properties": {
+      "video_id": "intro-2024",
+      "duration": 120
+    }
+  }'
+```
+
+## Error Responses
+
+### Invalid Request Body
+
+```json
+{
+  "status": "error",
+  "message": "Invalid request body"
+}
+```
+
+### Missing API Key or Website ID
+
+```json
+{
+  "status": "error",
+  "message": "API key or website_id required"
+}
+```
+
+### Missing Scope
+
+```json
+{
+  "status": "error",
+  "message": "API key missing track:events scope"
+}
+```
+
+### Website Not Found
+
+```json
+{
+  "status": "error",
+  "message": "Website not found"
+}
+```

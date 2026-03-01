@@ -1,0 +1,90 @@
+---
+title: 'Update Project'
+api: 'POST /websites/update'
+description: 'Updates an existing website (project) configuration'
+---
+
+## Authentication
+
+Requires either:
+- Session authentication with `update` permission on the website
+- API key with `update` permission
+
+## Request Body
+
+<ParamField body="id" type="string" required>
+  Website ID to update
+</ParamField>
+
+<ParamField body="name" type="string">
+  New display name
+</ParamField>
+
+<ParamField body="domain" type="string">
+  New domain (use with caution - may break tracking)
+</ParamField>
+
+<ParamField body="timezone" type="string">
+  IANA timezone identifier
+</ParamField>
+
+<ParamField body="publicAccess" type="boolean">
+  Enable or disable public dashboard access
+</ParamField>
+
+## Response
+
+Returns the updated website object with all fields.
+
+<ResponseField name="id" type="string">
+  Website identifier
+</ResponseField>
+
+<ResponseField name="domain" type="string">
+  Updated domain
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Updated display name
+</ResponseField>
+
+<ResponseField name="timezone" type="string">
+  Updated timezone
+</ResponseField>
+
+<ResponseField name="publicAccess" type="boolean">
+  Updated public access setting
+</ResponseField>
+
+<ResponseField name="updatedAt" type="string">
+  ISO 8601 timestamp of this update
+</ResponseField>
+
+## Example Request
+
+```bash
+curl -X POST https://api.databuddy.cc/websites/update \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "web_xyz789",
+    "name": "New Project Name",
+    "publicAccess": true
+  }'
+```
+
+## Example Response
+
+```json
+{
+  "id": "web_xyz789",
+  "organizationId": "org_abc123",
+  "domain": "example.com",
+  "name": "New Project Name",
+  "timezone": "America/Los_Angeles",
+  "publicAccess": true,
+  "trackingStatus": "active",
+  "createdAt": "2024-01-15T10:30:00Z",
+  "updatedAt": "2024-03-01T16:52:00Z"
+}
+```

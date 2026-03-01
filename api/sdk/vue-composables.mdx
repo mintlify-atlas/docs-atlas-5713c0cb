@@ -1,0 +1,231 @@
+---
+title: 'Vue Composables'
+description: 'Vue integration for Databuddy tracking and feature flags'
+---
+
+## Installation
+
+```bash
+npm install @databuddy/sdk
+```
+
+## Setup
+
+Add the `<Databuddy />` component to your app:
+
+```vue
+<!-- App.vue -->
+<script setup lang="ts">
+import { Databuddy } from '@databuddy/sdk/vue';
+</script>
+
+<template>
+  <div id="app">
+    <RouterView />
+    <Databuddy
+      :clientId="import.meta.env.VITE_DATABUDDY_CLIENT_ID"
+      :trackWebVitals="true"
+      :trackErrors="true"
+    />
+  </div>
+</template>
+```
+
+## Configuration Props
+
+<ParamField body="clientId" type="string" required>
+  Website ID from dashboard
+</ParamField>
+
+<ParamField body="apiUrl" type="string">
+  Tracking endpoint URL. Default: `https://basket.databuddy.cc`
+</ParamField>
+
+<ParamField body="trackWebVitals" type="boolean">
+  Enable Core Web Vitals tracking
+</ParamField>
+
+<ParamField body="trackErrors" type="boolean">
+  Automatically track JavaScript errors
+</ParamField>
+
+<ParamField body="trackScrollDepth" type="boolean">
+  Track scroll depth events
+</ParamField>
+
+<ParamField body="trackOutgoingLinks" type="boolean">
+  Track external link clicks
+</ParamField>
+
+<ParamField body="disabled" type="boolean">
+  Disable tracking
+</ParamField>
+
+<ParamField body="debug" type="boolean">
+  Enable debug logging
+</ParamField>
+
+## Using Tracking Functions
+
+Import and use tracking functions in any component:
+
+```vue
+<script setup lang="ts">
+import { track } from '@databuddy/sdk';
+
+const handleCheckout = () => {
+  track('checkout_clicked', {
+    cartSize: 3,
+    cartValue: 149.97
+  });
+};
+</script>
+
+<template>
+  <button @click="handleCheckout">
+    Checkout
+  </button>
+</template>
+```
+
+## Composition API Example
+
+```vue
+<script setup lang="ts">
+import { onMounted, watch } from 'vue';
+import { track } from '@databuddy/sdk';
+
+interface Props {
+  product: {
+    id: string;
+    name: string;
+    price: number;
+  };
+}
+
+const props = defineProps<Props>();
+
+// Track on mount
+onMounted(() => {
+  track('product_viewed', {
+    productId: props.product.id,
+    productName: props.product.name,
+    price: props.product.price
+  });
+});
+
+// Track on prop changes
+watch(() => props.product.id, (newId, oldId) => {
+  if (newId !== oldId) {
+    track('product_viewed', {
+      productId: newId,
+      productName: props.product.name,
+      price: props.product.price
+    });
+  }
+});
+
+const addToCart = () => {
+  track('add_to_cart', {
+    productId: props.product.id,
+    price: props.product.price
+  });
+};
+</script>
+
+<template>
+  <div>
+    <h1>{{ product.name }}</h1>
+    <button @click="addToCart">
+      Add to Cart
+    </button>
+  </div>
+</template>
+```
+
+## Vue Router Integration
+
+Track route changes automatically:
+
+```typescript
+// router/index.ts
+import { createRouter, createWebHistory } from 'vue-router';
+import { track } from '@databuddy/sdk';
+
+const router = createRouter({
+  history: createWebHistory(),
+  routes: [...]
+});
+
+router.afterEach((to, from) => {
+  // Track page view
+  track('page_view', {
+    path: to.path,
+    name: to.name as string,
+    fromPath: from.path
+  });
+});
+
+export default router;
+```
+
+## Environment Variables
+
+Create a `.env` file:
+
+```bash
+VITE_DATABUDDY_CLIENT_ID=your_website_id
+```
+
+## Nuxt 3 Setup
+
+Create a plugin:
+
+```typescript
+// plugins/databuddy.client.ts
+import { defineNuxtPlugin } from '#app';
+import { Databuddy } from '@databuddy/sdk/vue';
+
+export default defineNuxtPlugin((nuxtApp) => {
+  const config = useRuntimeConfig();
+  
+  nuxtApp.vueApp.component('Databuddy', Databuddy);
+  
+  // Optional: Add to app.vue
+  // <Databuddy
+  //   :clientId="config.public.databuddyClientId"
+  //   :trackWebVitals="true"
+  // />
+});
+```
+
+Add to `nuxt.config.ts`:
+
+```typescript
+export default defineNuxtConfig({
+  runtimeConfig: {
+    public: {
+      databuddyClientId: process.env.NUXT_PUBLIC_DATABUDDY_CLIENT_ID
+    }
+  }
+});
+```
+
+## TypeScript Support
+
+Full TypeScript support included:
+
+```typescript
+import { track, getAnonymousId, flush } from '@databuddy/sdk';
+
+interface CheckoutEvent {
+  cartId: string;
+  total: number;
+  items: number;
+}
+
+function trackCheckout(data: CheckoutEvent) {
+  track('checkout_started', data);
+  flush();
+}
+```
